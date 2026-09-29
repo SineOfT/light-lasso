@@ -1,0 +1,17 @@
+:root {
+    --color-controls: #AAA;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    font-family: Copperplate, Helvetica, sans-serif;
+    overflow: hidden;
+}
