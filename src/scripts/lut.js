@@ -44,3 +44,21 @@ export function generateLut(points) {
 
     return lut;
 }
+
+export function generateBezierLut(InvControlPoint1, point1, controlPoint2, point2) {    
+    let lut = [];
+
+    const controlPoint1 = posSub(posMul(point1, 2), InvControlPoint1);
+
+    for (let t = 0; t < 1; t += LUT_STEP) {
+        const a0 =                  p0;
+        const a1 = posAddAll(posMul(p0, -3), posMul(p1,  3));
+        const a2 = posAddAll(posMul(p0,  3), posMul(p1, -6), posMul(p2,  3));
+        const a3 = posAddAll(posMul(p0, -1), posMul(p1,  3), posMul(p2, -3), p3);
+        
+        const pos = posAdd(posMul(posAdd(posMul(posAdd(posMul(a3, t), a2), t), a1), t), a0);
+        lut.push(pos);
+    }
+
+    return lut;
+}

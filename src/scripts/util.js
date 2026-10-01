@@ -13,6 +13,8 @@ export const numAvg = (...num) => num.length === 0 ? 0 : (numAddAll(...num) / nu
 export const posDistanceSqr = (pos) => pos.x*pos.x + pos.y*pos.y;
 export const posWithin = (a, b, distance) => posDistanceSqr(posSub(a, b)) <= distance*distance;
 
+export const posEquals = (a, b) => a.x === b.x && a.y === b.y;
+
 export const lerp = (a, b, t) => a * (1-t) + b * t;
 export const invLerp = (a, b, x) =>  (x - a) / (b - a);
 
