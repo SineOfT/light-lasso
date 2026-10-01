@@ -54,7 +54,10 @@ function Sidebar({ id, direction, children }) {
             <div className={resizeBarClass}>
                 <div className="bar-handle" ref={barHandleRef}></div>
             </div>
-            <section ref={sidebarContainerRef} style={{ width: 0 }}>
+            <section ref={sidebarContainerRef} style={isVertical
+                ? { width: 0 }
+                : { height: 0 }
+            }>
                 {children}
             </section>
         </aside>

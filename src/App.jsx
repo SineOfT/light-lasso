@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { posAvg, numAvg, generateId } from './scripts/util';
 import { generateLut } from './scripts/lut';
 import Main from './layout/Main';
 import Sidebar from './layout/Sidebar';
@@ -76,6 +77,44 @@ function App() {
         setSelectedPointId(pointId);
     }
 
+    const handleAddPoint = (curveId, pointIndex) => {
+        if (!Object.hasOwn(curves, curveId)) { return; }
+        const prevCurve = curves[curveId];
+        if (prevCurve.length < pointIndex) { return; }
+        const prevCurvePoints = prevCurve.map((curvePointId) => points[curvePointId]);
+
+        const surroundingPointIds = pointIndex === 0
+            ? [prevCurve[0]]
+        : pointIndex === prevCurve.length
+            ? [prevCurve[prevCurve.length-1]]
+            : [prevCurve[pointIndex-1], prevCurve[pointIndex]];
+        const surroundingPoints = surroundingPointIds.map(p => points[p]);
+        const pos = posAvg(...surroundingPoints.map(p => p.pos));
+        const t = numAvg(...surroundingPoints.map(p => p.t));
+        const point = { pos, t, radius: 0 };
+        const id = generateId(Object.keys(points));
+
+        const newCurve = [...prevCurve].toSpliced(pointIndex, 0, id);
+        const newCurvePoints = [...prevCurvePoints].toSpliced(pointIndex, 0, point);
+
+        setPoints((prevPoints) => {
+            const newPoints = { ...prevPoints };
+            newPoints[id] = point;
+            return newPoints;
+        });
+        setCurves((prevCurves) => {
+            const newCurves = { ...prevCurves };
+            newCurves[curveId] = newCurve;
+            return newCurves;
+        });
+        setSelectedPointId(id);
+        setLuts((prevLuts) => {
+            const newLuts = { ...prevLuts };
+            newLuts[curveId] = generateLut(newCurvePoints);
+            return newLuts;
+        });
+    }
+
     const handleUpdateCurve = (curveId, curvePointIds) => {
         if (!Object.hasOwn(curves, curveId)) { return; }
         const curvePoints = curvePointIds.map((pointId) => points[pointId]); //TODO
@@ -119,8 +158,11 @@ function App() {
         <Sidebar id="local-controls-sidebar" direction="right">
             <LocalControls
                 points={points}
+                curves={curves}
                 selectedPointId={selectedPointId}
                 onUpdatePoint={handleUpdatePoint}
+                onUpdateSelected={handleUpdateSelected}
+                onAddPoint={handleAddPoint}
             />
         </Sidebar>
         <Sidebar id="global-controls-sidebar" direction="bottom"></Sidebar>

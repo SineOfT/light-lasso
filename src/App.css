@@ -1,5 +1,8 @@
 :root {
     --color-controls: #AAA;
+    --color-controls-bg: #EEE;
+
+    --font-sans-serif: Copperplate, Helvetica, sans-serif;
 }
 
 *,
@@ -12,6 +15,6 @@ body {
     width: 100vw;
     height: 100vh;
     margin: 0;
-    font-family: Copperplate, Helvetica, sans-serif;
+    font-family: var(--font-sans-serif);
     overflow: hidden;
 }

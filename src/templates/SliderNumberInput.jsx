@@ -15,14 +15,13 @@ function SliderNumberInput({ title, id, value, onUpdateValue }) {
         onUpdateValue(newValue);
     }
 
-    const inputId = `${id}-input`;
     const sliderId = `${id}-slider-input`;
     const numberId = `${id}-number-input`;
 
     const sliderValue = getSliderValue(value);
 
     return (
-        <fieldset id={inputId} className="slider-number-input">
+        <fieldset className="slider-number-input">
             <legend>{title}</legend>
             <div className="slider-input">
                 <label htmlFor={sliderId}>Slider</label>
