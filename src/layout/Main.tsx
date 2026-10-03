@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { SELECTABLE_RADIUS } from '../scripts/constants';
-import { posAdd, posSub, posWithin } from '../scripts/pos';
+import { getInvPos, posAdd, posSub, posWithin } from '../scripts/pos';
+import { isPointControl, getPointLocationOnCurve, getPointOnCurve } from '../scripts/curves';
 
 import type { MouseEvent } from 'react';
 import type { pos } from '../scripts/pos';
@@ -34,8 +35,14 @@ const Main = ({
     /** function updates the current selected point */
     onUpdateSelected: (pointId: string|null) => void,
 }) => {
+    // the ID of the control point currently being dragged
+    const [dragControlPointId, setDragControlPointId] = useState<string|null>(null);
+    // the ID of the anchor point currently being dragged
+    const [dragAnchorPointId, setDragAnchorPointId] = useState<string|null>(null);
     // the offset at which the dragged point was initially located
     const [dragOffset, setDragOffset] = useState<pos|null>(null);
+    // whether the point being dragged is the anchor point, control point, or inverse of control point
+    const [dragPointType, setDragPointType] = useState<'anchor'|'control'|'invControl'>('anchor');
     // a DOM ref to the canvas which the lasso is drawn on
     const canvasRef = useRef<HTMLCanvasElement|null>(null);
     // a ref to the ID of the animation loop, used to stop the animation loop
@@ -97,19 +104,30 @@ const Main = ({
      * function draws the points and curves on the canvas, clearing previous
      */
     const draw = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
+        // determine which points need to be drawn based on selection
+        // filter out control points
+        const drawnPoints = Object.entries(points)
+            .filter((_, i) => !isPointControl(i))
+            .map(([pointId, point]) => ({ point, selected: pointId === selectedPointId }));
+        // draw line between control point and inverse control point
+        const controlLines = [];
+        // if point selected, change color and include control points
+        if (selectedPointId != null) {
+            const pointLocation = getPointLocationOnCurve(curves, selectedPointId);
+            if (pointLocation != undefined) {
+                const { curve, controlPointIndex, anchorPointIndex } = pointLocation;
+                const controlPoint = getPointOnCurve(points, curve, controlPointIndex);
+                const anchorPoint = getPointOnCurve(points, curve, anchorPointIndex);
+                const invControlPoint = getInvPos(controlPoint, anchorPoint);
+                drawnPoints.push({ point: controlPoint, selected: false });
+                drawnPoints.push({ point: invControlPoint, selected: false });
+                controlLines.push({ controlPoint, invControlPoint });
+            }
+        }
+
         // clear previous drawing
         ctx.fillStyle = '#333';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // draw each point
-        Object.entries(points).forEach(([pointId, point]) => {
-            const selected = pointId === selectedPointId;
-
-            ctx.fillStyle = selected ? '#F00' : '#DDD';
-            ctx.beginPath();
-            ctx.arc(point.x, point.y, SELECTABLE_RADIUS, 0, Math.PI * 2, false);
-            ctx.fill();
-        });
 
         // draw each curve
         ctx.fillStyle = '#AAA';
@@ -122,6 +140,24 @@ const Main = ({
                 });
             });
         });
+
+        // draw each line between control points
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#DDD';
+        controlLines.forEach(({ controlPoint, invControlPoint }) => {
+            ctx.beginPath();
+            ctx.moveTo(controlPoint.x, controlPoint.y);
+            ctx.lineTo(invControlPoint.x, invControlPoint.y);
+            ctx.stroke();
+        });
+
+        // draw each point
+        drawnPoints.forEach(({ point, selected }) => {
+            ctx.fillStyle = selected ? '#F00' : '#DDD';
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, SELECTABLE_RADIUS, 0, Math.PI * 2, false);
+            ctx.fill();
+        });
     }
 
     /**
@@ -129,25 +165,65 @@ const Main = ({
      * @param e event provided by the event listener
      */
     const handleDragStart = (e: MouseEvent<HTMLCanvasElement>) => {
-        // find point within mouse position
+        // find points that can be dragged
+        const draggablePoints = Object.values(curves).flatMap((curve) =>
+            curve.flatMap((pointId, pointIndex) => {
+                if (isPointControl(pointIndex)) {
+                    const controlPoint = getPointOnCurve(points, curve, pointIndex);
+                    const anchorPoint = getPointOnCurve(points, curve, pointIndex+1);
+                    const invControlPoint = getInvPos(controlPoint, anchorPoint);
+                    return [
+                        { pointId, point: controlPoint, isInverse: false },
+                        { pointId, point: invControlPoint, isInverse: true }
+                    ];
+                } else {
+                    const point = getPointOnCurve(points, curve, pointIndex);
+                    return [{ pointId, point, isInverse: false }];
+                }
+            })
+        );
+
+        // find points within mouse position
         const mousePos = { x: e.clientX, y: e.clientY };
-        const clickedPoint = Object.entries(points).find(([_, point]) => posWithin(point, mousePos, SELECTABLE_RADIUS));
+        const clickedPoints = draggablePoints.filter(({ point }) => posWithin(point, mousePos, SELECTABLE_RADIUS));
         
-        // if point clicked, begin dragging point
-        if (clickedPoint) {
-            const [selectedPointId, selectedPoint] = clickedPoint;
-            onUpdateSelected(selectedPointId);
-            setDragOffset(posSub(selectedPoint, mousePos));
-        // if point not clicked, deselect all
-        } else {
+        // if no point clicked, deselect current
+        if (clickedPoints.length === 0) {
             onUpdateSelected(null);
+            return;
         }
+
+        // determine location of first clicked point, using current selected point if is one of clicked
+        const { pointId: clickedPointId, point: clickedPoint, isInverse } = 
+            clickedPoints.find(({ pointId }) => pointId === selectedPointId) ?? clickedPoints[0]!;
+        const pointLocation = getPointLocationOnCurve(curves, clickedPointId);
+        if (pointLocation == undefined) { return; }
+        const { curve, isControlPoint, controlPointIndex, anchorPointIndex } = pointLocation;
+        const controlPointId = curve[controlPointIndex]!;
+        const anchorPointId = curve[anchorPointIndex]!;
+
+        // set point type
+        if (!isControlPoint) {
+            setDragPointType('anchor');
+            onUpdateSelected(clickedPointId); // if point is not control point, select
+        } else if (isInverse) {
+            setDragPointType('invControl');
+        } else {
+            setDragPointType('control');
+        }
+
+        // calculate initial drag offset to begin drag
+        setDragControlPointId(controlPointId);
+        setDragAnchorPointId(anchorPointId);
+        setDragOffset(posSub(clickedPoint, mousePos));
     }
 
     /**
      * function handles ending dragging a point by removing the recorded drag offset
      */
     const handleDragEnd = () => {
+        setDragControlPointId(null);
+        setDragAnchorPointId(null);
         setDragOffset(null);
     }
 
@@ -157,12 +233,37 @@ const Main = ({
      */
     const handleDrag = (e: MouseEvent<HTMLCanvasElement>) => {
         // if drag not ongoing, skip
-        if (dragOffset == null || selectedPointId == null) { return; }
+        if (dragOffset == null || dragControlPointId == null || dragAnchorPointId == null) { return; }
 
-        // update dragging point to new position
+        // calculate new position of point
         const mousePos = { x: e.clientX, y: e.clientY };
         const pos = posAdd(mousePos, dragOffset);
-        onUpdatePoint(selectedPointId, pos);
+        
+
+        // if control point, set position
+        if (dragPointType === 'control') {
+            onUpdatePoint(dragControlPointId, pos);
+
+        // if inverse control point, set inverse position
+        } else if (dragPointType === 'invControl') {
+            const dragAnchorPoint = points[dragAnchorPointId];
+            if (dragAnchorPoint == undefined) { return; }
+            const invPos = getInvPos(pos, dragAnchorPoint);
+            onUpdatePoint(dragControlPointId, invPos);            
+
+        // if anchor point, set position & update control position to remain relative
+        } else {
+            const dragControlPoint = points[dragControlPointId];
+            const dragAnchorPoint = points[dragAnchorPointId];
+            if (dragControlPoint == undefined || dragAnchorPoint == undefined) { return; }
+            const controlPos = posAdd(posSub(pos, dragAnchorPoint), dragControlPoint);
+            
+            onUpdatePoint(dragAnchorPointId, pos);
+            onUpdatePoint(dragControlPointId, controlPos);
+        }
+        
+        // update dragging point to new position
+        // if point not control point, keep offset from control point to anchor point
     }
 
     return (

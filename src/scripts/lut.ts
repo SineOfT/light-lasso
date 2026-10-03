@@ -1,5 +1,5 @@
-import { posAdd, posSub, posMul, posAddAll } from './pos';
-import { getPointOnCurve, getPointLocationOnCurve } from './curves';
+import { posAdd, posSub, posMul, posAddAll, getInvPos } from './pos';
+import { isPointControl, getPointOnCurve, getPointLocationOnCurve } from './curves';
 
 import type { pos } from './pos';
 import type { curve } from './curves';
@@ -24,7 +24,7 @@ export const generateBezierLut = (
     let lut = [];
 
     // determine position of first control point by inverting in relation to first point
-    const controlPos1 = posSub(posMul(point1, 2), invControlPoint1);
+    const controlPos1 = getInvPos(invControlPoint1, point1);
 
     /* 
      * precompute coefficients used in cubic bezier polynomial
@@ -68,16 +68,13 @@ export const getLutFromUpdatePoint = (
     // get location of point in curves
     const pointLocation = getPointLocationOnCurve(curves, pointId);
     if (pointLocation == undefined) { return; }
-    const { curveId, curve, pointIndex } = pointLocation;
+    const { curveId, curve, isControlPoint, anchorPointIndex } = pointLocation;
 
     // must have 4 points to be valid cubic bezier
     if (curve.length < 4) { return; }
 
-    // if the point index is even, it is a control point
-    const isControlPoint = pointIndex % 2 === 0;
-
     // find which sections this point affects on curve
-    const sectionAfterIndex = Math.floor(pointIndex / 2);
+    const sectionAfterIndex = Math.floor(anchorPointIndex / 2);
     const sectionBeforeIndex = sectionAfterIndex - 1;
 
     // generate LUTs for each section, if exists

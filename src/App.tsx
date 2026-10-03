@@ -132,7 +132,7 @@ const App = () => {
      * function updates the LUT where a point and respective control point has been added
      * 
      * @param curveId the ID of the curve in which the new point has been added
-     * @param curvePointIndex the index at which the new point has been added
+     * @param pointIndex the index at which the new point has been added
      * @param controlPointPos the position of the control point for the new point
      * @param pointPos the position of the new point
      */

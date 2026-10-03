@@ -35,12 +35,12 @@ function LocalControls({
 
         // find location of point in curves
 
-        // find points before and after selected point on curve
-        const pointBeforeId = pointIndex-1 >= 0
-            ? curve[pointIndex-1]!
+        // find points before and after selected point on curve, skipping control points
+        const pointBeforeId = pointIndex-2 >= 0
+            ? curve[pointIndex-2]!
             : null;
-        const pointAfterId  = pointIndex+1 < curve.length
-            ? curve[pointIndex+1]!
+        const pointAfterId  = pointIndex+2 < curve.length
+            ? curve[pointIndex+2]!
             : null;
 
         // return relevant data
@@ -53,10 +53,10 @@ function LocalControls({
     // find location of selected point in curves, showing nothing if non-existant
     const pointLocation = getPointLocationOnCurve(curves, selectedPointId);
     if (pointLocation == undefined) { return <></>; }
-    const { curveId, curve, pointIndex } = pointLocation;
+    const { curveId, curve, anchorPointIndex } = pointLocation;
 
     // find neighboring points
-    const neighboringPointIds = findNeighboringPointIds(curve, pointIndex);
+    const neighboringPointIds = findNeighboringPointIds(curve, anchorPointIndex);
     const { pointBeforeId, pointAfterId } = neighboringPointIds
         ?? { pointBeforeId: null, pointAfterId: null };
 
@@ -71,10 +71,10 @@ function LocalControls({
         </InputSet>
         <InputSet title="Add Point">
             <Button title="+ Add Point Before"
-                onClick={() => { onAddPoint(curveId, pointIndex); }}
+                onClick={() => { onAddPoint(curveId, anchorPointIndex); }}
             />
             <Button title="Add Point After +"
-                onClick={() => { onAddPoint(curveId, pointIndex+1); }}
+                onClick={() => { onAddPoint(curveId, anchorPointIndex+1); }}
             />
         </InputSet>
     </div>);

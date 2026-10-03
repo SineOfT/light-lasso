@@ -25,3 +25,6 @@ export const posAvg = (...pos: pos[]) => pos.length === 0 ? { ...EMPTY_POS } : p
 export const posDistanceSqr = (pos: pos) => pos.x*pos.x + pos.y*pos.y;
 /** function determines whether 2 positions are within a given distance */
 export const posWithin = (a: pos, b: pos, distance: number) => posDistanceSqr(posSub(a, b)) <= distance*distance;
+
+/** function takes a position and an anchor, and finds the position that is opposite to the given position */
+export const getInvPos = (pos: pos, anchor: pos) => posSub(posMul(anchor, 2), pos);

@@ -9,6 +9,12 @@ import type { pos } from './pos';
 export type curve = string[];
 
 /**
+ * function gets whether point at given index on curve is control point
+ * @param pointIndex the index of the point on the curve
+ */
+export const isPointControl = (pointIndex: number) => pointIndex % 2 === 0;
+
+/**
  * function gets a point on the given curve at the given index
  * 
  * if any of the accessed are invalid (non-existent ID, index out of bounds),
@@ -16,19 +22,19 @@ export type curve = string[];
  * 
  * @param points a record of all existing points
  * @param curve the curve to get the point from
- * @param curvePointIndex the index at which the point is in the curve
+ * @param pointIndex the index at which the point is in the curve
  * @returns the point at the given location, or an empty point if invalid
  */
 export const getPointOnCurve = (
     points: Record<string, pos>,
     curve: curve,
-    curvePointIndex: number,
+    pointIndex: number,
 ): pos => {
     // get point ID at index on curve, if exists
-    const curvePointId = curve[curvePointIndex];
+    const curvePointId = curve[pointIndex];
     if (curvePointId == undefined) {
         console.warn('Tried to get out-of-bounds point at index %s on curve with length %d',
-            curvePointIndex, curve.length);
+            pointIndex, curve.length);
         return EMPTY_POS;
     }
 
@@ -52,17 +58,25 @@ export const getPointLocationOnCurve = (
     curves: Record<string, curve>,
     pointId: string,
 ) => {
-    // find curve selected point is within
+    // find curve point is within
     const curveObj = Object.entries(curves).find(([_, curve]) => curve.includes(pointId));
     if (curveObj == undefined) { return; }
     const [curveId, curve] = curveObj;
 
-    // find index of selected point on curve
+    // find index of point on curve
     const pointIndex = curve.indexOf(pointId);
     if (pointIndex === -1) { return; }
 
+    // determine whether point is control point or not
+    const isControlPoint = isPointControl(pointIndex);
+
+    // get control point and anchor point indexes and IDs relevant to point
+    const { controlPointIndex, anchorPointIndex } = isControlPoint
+        ? { controlPointIndex: pointIndex,   anchorPointIndex: pointIndex+1 }
+        : { controlPointIndex: pointIndex-1, anchorPointIndex: pointIndex   };
+
     // return relevant data
-    return { curveId, curve, pointIndex };
+    return { curveId, curve, isControlPoint, controlPointIndex, anchorPointIndex };
 }
 
 /**
@@ -82,8 +96,8 @@ export const getCurveFromAddPoint = (
     curveId: string,
     pointIndex: number,
 ) => {
-    // index of point must be even, since odd indices are control points
-    if (pointIndex % 2 === 1) { return; }
+    // point must not be control point
+    if (isPointControl(pointIndex)) { return; }
 
     // get the points from the curve the point is being added to
     const prevCurve = curves[curveId];
