@@ -1,0 +1,60 @@
+.resizable-sidebar {
+    position: absolute;
+}
+.sidebar-left   { inset: 0 auto 0 0; }
+.sidebar-right  { inset: 0 0 0 auto; }
+.sidebar-top    { inset: 0 0 auto; }
+.sidebar-bottom { inset: auto 0 0; }
+
+.resize-bar {
+    position: absolute;
+    background-color: var(--color-controls);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.sidebar-left   .resize-bar { left:   100%; width: 0.5rem; height: 100vh;  }
+.sidebar-right  .resize-bar { right:  100%; width: 0.5rem; height: 100vh;  }
+.sidebar-top    .resize-bar { top:    100%; width: 100vw;  height: 0.5rem; }
+.sidebar-bottom .resize-bar { bottom: 100%; width: 100vw;  height: 0.5rem; }
+
+.bar-handle {
+    position: absolute;
+    border-radius: 50%;
+    background-color: var(--color-controls);
+}
+.sidebar-left   .bar-handle { left:   50%; width: 1.5rem; height: 3rem; border-radius: 0 1.5rem 1.5rem 0; }
+.sidebar-right  .bar-handle { right:  50%; width: 1.5rem; height: 3rem; border-radius: 1.5rem 0 0 1.5rem; }
+.sidebar-top    .bar-handle { top:    50%; width: 3rem; height: 1.5rem; border-radius: 0 0 1.5rem 1.5rem; }
+.sidebar-bottom .bar-handle { bottom: 50%; width: 3rem; height: 1.5rem; border-radius: 1.5rem 1.5rem 0 0; }
+
+.bar-handle::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1rem;
+    height: 1rem;
+    border-width: 5px;
+    border-style: solid;
+    border-top-color: white;
+    border-left-color: white;
+    border-bottom-color: transparent;
+    border-right-color: transparent;
+    transform-origin: 0 0;
+    z-index: 1;
+    pointer-events: none;
+}
+.sidebar-right  .bar-handle::after { transform: translate(0.5rem, 1.5rem) rotate( -45deg); }
+.sidebar-top    .bar-handle::after { transform: translate(1.5rem, 1rem  ) rotate(-135deg); }
+.sidebar-bottom .bar-handle::after { transform: translate(1.5rem, 0.5rem) rotate(  45deg); }
+.sidebar-left   .bar-handle::after { transform: translate(1rem,   1.5rem) rotate( 135deg); }
+
+.resizable-sidebar > section {
+    background-color: white;
+}
+
+.sidebar-left   > section { height: 100%; }
+.sidebar-right  > section { height: 100%; }
+.sidebar-top    > section { width: 100%; }
+.sidebar-bottom > section { width: 100%; }

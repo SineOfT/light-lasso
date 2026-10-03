@@ -1,0 +1,9 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+.p-s { padding: 0.5rem; }
+.p-m { padding: 1rem; }
+.p-l { padding: 2rem; }

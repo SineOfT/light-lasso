@@ -5,12 +5,6 @@
     --font-sans-serif: Copperplate, Helvetica, sans-serif;
 }
 
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
-}
-
 body {
     width: 100vw;
     height: 100vh;
