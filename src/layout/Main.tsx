@@ -119,9 +119,14 @@ const Main = ({
                 const controlPoint = getPointOnCurve(points, curve, controlPointIndex);
                 const anchorPoint = getPointOnCurve(points, curve, anchorPointIndex);
                 const invControlPoint = getInvPos(controlPoint, anchorPoint);
-                drawnPoints.push({ point: controlPoint, selected: false });
-                drawnPoints.push({ point: invControlPoint, selected: false });
-                controlLines.push({ controlPoint, invControlPoint });
+                if (anchorPointIndex > 1) { // if first anchor, no control point before
+                    drawnPoints.push({ point: controlPoint, selected: false });
+                    controlLines.push({ anchorPoint, controlPoint });
+                }
+                if (anchorPointIndex < curve.length-1) { // if last anchor, no control point after
+                    drawnPoints.push({ point: invControlPoint, selected: false });
+                    controlLines.push({ anchorPoint, controlPoint: invControlPoint });
+                }
             }
         }
 
@@ -142,12 +147,12 @@ const Main = ({
         });
 
         // draw each line between control points
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 2;
         ctx.strokeStyle = '#DDD';
-        controlLines.forEach(({ controlPoint, invControlPoint }) => {
+        controlLines.forEach(({ anchorPoint, controlPoint }) => {
             ctx.beginPath();
-            ctx.moveTo(controlPoint.x, controlPoint.y);
-            ctx.lineTo(invControlPoint.x, invControlPoint.y);
+            ctx.moveTo(anchorPoint.x, anchorPoint.y);
+            ctx.lineTo(controlPoint.x, controlPoint.y);
             ctx.stroke();
         });
 
