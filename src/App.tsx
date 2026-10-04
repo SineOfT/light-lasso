@@ -78,27 +78,34 @@ const App = () => {
      * @param curveId the ID of the curve to add the point to
      * @param pointIndex the index on the curve at which to add the point
      */
-    const handleAddPoint = (curveId: string, pointIndex: number) => {
+    const handleAddPoint = (curveId: string, pointIndex: number, isAfter: boolean) => {
         // calculate new curves from add
-        const curveFromAddPointData = getCurveFromAddPoint(points, curves, curveId, pointIndex);
+        const curveFromAddPointData
+            = getCurveFromAddPoint(points, curves, luts, curveId, pointIndex, isAfter);
         if (curveFromAddPointData == undefined) { return; }
-        const { newControlPointId, newControlPoint, newPointId, newPoint } = curveFromAddPointData;
+        const { newPointIndex, controlPointId, controlPoint, anchorPointId, anchorPoint }
+            = curveFromAddPointData;
 
         // set points and curves in states
         setPoints((prevPoints) => {
             const newPoints = { ...prevPoints };
-            newPoints[newControlPointId] = newControlPoint;
-            newPoints[newPointId] = newPoint;
+            newPoints[controlPointId] = controlPoint;
+            newPoints[anchorPointId] = anchorPoint;
             return newPoints;
         });
         setCurves((prevCurves) => {
             const newCurves = { ...prevCurves };
-            newCurves[curveId]?.splice(pointIndex, 0, newControlPointId, newPointId);
+            const newCurve = newCurves[curveId];
+            if (newCurve == undefined) { return prevCurves; }
+            if (newCurve?.includes(controlPointId) || newCurve?.includes(anchorPointId)) {
+                return prevCurves; // if already contains new points, already added
+            }
+            newCurve?.splice(newPointIndex, 0, controlPointId, anchorPointId);
             return newCurves;
         });
         
         // update LUT where affected by new point
-        handleUpdateLutFromAddPoint(curveId, pointIndex, newControlPoint, newPoint);
+        handleUpdateLutFromAddPoint(curveId, pointIndex, isAfter, controlPoint, anchorPoint);
     }
 
     /**
@@ -122,8 +129,8 @@ const App = () => {
             const newLuts = { ...prevLuts };
             const newLut = newLuts[curveId];
             if (newLut == undefined) { return prevLuts; }
-            if (sectionBeforeLut != null) { newLut[sectionBeforeIndex] = sectionBeforeLut; }
-            if (sectionAfterLut  != null) { newLut[sectionAfterIndex]  = sectionAfterLut;  }
+            if (sectionBeforeIndex != undefined) { newLut[sectionBeforeIndex] = sectionBeforeLut!; }
+            if (sectionAfterIndex  != undefined) { newLut[sectionAfterIndex]  = sectionAfterLut!;  }
             return newLuts;
         });
     }
@@ -137,20 +144,43 @@ const App = () => {
      * @param pointPos the position of the new point
      */
     const handleUpdateLutFromAddPoint = (
-        curveId: string, pointIndex: number, controlPoint: pos, point: pos
+        curveId: string, pointIndex: number, isAfter: boolean, controlPoint: pos, anchorPoint: pos
     ) => {
         // calculate new LUTs from add
         const lutFromAddPointData = getLutFromAddPoint(
-            points, curves, curveId, pointIndex, controlPoint, point);
+            points, curves, curveId, pointIndex, isAfter, controlPoint, anchorPoint);
         if (lutFromAddPointData == undefined) { return; }
-        const { sectionIndex, sectionLuts } = lutFromAddPointData;
+        const { sectionIndex, sectionBeforeLut, sectionAfterLut } = lutFromAddPointData;
 
         // set these new LUTs in the state
-        setLuts((prevLuts) => {
-            const newLuts = { ...prevLuts };
-            newLuts[curveId]?.splice(sectionIndex, 1, ...sectionLuts); // replace one LUT with 2 new
-            return newLuts;
-        });
+        if (sectionBeforeLut == undefined) {
+            setLuts((prevLuts) => {
+                const newLuts = { ...prevLuts };
+                const newLut = newLuts[curveId];
+                if (newLut == undefined) { return prevLuts; }
+                if (newLut.includes(sectionAfterLut!)) { return prevLuts; }
+                newLut.unshift(sectionAfterLut!);
+                return newLuts;
+            });
+        } else if (sectionAfterLut == undefined) {
+            setLuts((prevLuts) => {
+                const newLuts = { ...prevLuts };
+                const newLut = newLuts[curveId];
+                if (newLut == undefined) { return prevLuts; }
+                if (newLut.includes(sectionBeforeLut!)) { return prevLuts; }
+                newLuts[curveId]?.push(sectionBeforeLut!);
+                return newLuts;
+            });
+        } else {
+            setLuts((prevLuts) => {
+                const newLuts = { ...prevLuts };
+                const newLut = newLuts[curveId];
+                if (newLut == undefined) { return prevLuts; }
+                if (newLut.includes(sectionBeforeLut) || newLut.includes(sectionAfterLut)) { return prevLuts; }
+                newLuts[curveId]?.splice(sectionIndex!, 1, sectionBeforeLut, sectionAfterLut);
+                return newLuts;
+            });
+        }
     }
 
     /**
@@ -163,6 +193,8 @@ const App = () => {
     const handleUpdateSelected = (pointId: string|null) => {
         setSelectedPointId(pointId);
     }
+
+    console.log(JSON.stringify(luts));
 
     return (<>
         <Main

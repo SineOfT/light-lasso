@@ -1,5 +1,5 @@
-import { posAdd, posSub, posMul, posAddAll, getInvPos } from './pos';
-import { isPointControl, getPointOnCurve, getPointLocationOnCurve } from './curves';
+import { posAdd, posMul, posAddAll, getInvPos } from './pos';
+import { getPointOnCurve, getPointLocationOnCurve, getNeighboringSectionIndexes, getPoint } from './curves';
 
 import type { pos } from './pos';
 import type { curve } from './curves';
@@ -73,23 +73,25 @@ export const getLutFromUpdatePoint = (
     // must have 4 points to be valid cubic bezier
     if (curve.length < 4) { return; }
 
+
     // find which sections this point affects on curve
-    const sectionAfterIndex = Math.floor(anchorPointIndex / 2);
-    const sectionBeforeIndex = sectionAfterIndex - 1;
+    const neighboringSectionIndexes = getNeighboringSectionIndexes(curve, anchorPointIndex);
+    if (neighboringSectionIndexes == undefined) { return; }
+    const { sectionBeforeIndex, sectionAfterIndex } = neighboringSectionIndexes;
 
     // generate LUTs for each section, if exists
-    const sectionBeforeLut = sectionBeforeIndex*2 >= 0 ? generateBezierLut(
+    const sectionBeforeLut = sectionBeforeIndex != undefined ? generateBezierLut(
         getPointOnCurve(points, curve, sectionBeforeIndex*2  ),
         getPointOnCurve(points, curve, sectionBeforeIndex*2+1),
         isControlPoint ? newPoint : getPointOnCurve(points, curve, sectionBeforeIndex*2+2),
         isControlPoint ? getPointOnCurve(points, curve, sectionBeforeIndex*2+3) : newPoint,
-    ) : null;
-    const sectionAfterLut = sectionAfterIndex*2+3 < curve.length ? generateBezierLut(
+    ) : undefined;
+    const sectionAfterLut  = sectionAfterIndex  != undefined ? generateBezierLut(
         isControlPoint ? newPoint : getPointOnCurve(points, curve, sectionAfterIndex*2  ),
         isControlPoint ? getPointOnCurve(points, curve, sectionAfterIndex*2+1) : newPoint,
         getPointOnCurve(points, curve, sectionAfterIndex*2+2),
         getPointOnCurve(points, curve, sectionAfterIndex*2+3),
-    ) : null;
+    ) : undefined;
 
     // return relevant data
     return {
@@ -115,33 +117,55 @@ export const getLutFromAddPoint = (
     curves: Record<string, curve>,
     curveId: string,
     pointIndex: number,
+    isAfter: boolean,
     controlPoint: pos,
-    point: pos,
+    anchorPoint: pos,
 ) => {
     // get curve at specified index
     const curve = curves[curveId];
     if (curve == undefined) { return; }
+    if (curve.length < 4) { return; }
+    if (pointIndex >= curve.length) { return; }
     
     // find which section point added to
-    const sectionIndex = pointIndex / 2;
+    const neighboringSectionIndexes = getNeighboringSectionIndexes(curve, pointIndex);
+    if (neighboringSectionIndexes == undefined) { return; }
+    const {
+        sectionIndex,
+        controlBeforeSectionId, anchorBeforeSectionId,
+        controlAfterSectionId,  anchorAfterSectionId,
+    } = isAfter ? {
+        sectionIndex: neighboringSectionIndexes.sectionAfterIndex,
+        controlBeforeSectionId: neighboringSectionIndexes.controlPointId,
+        anchorBeforeSectionId: neighboringSectionIndexes.anchorPointId,
+        controlAfterSectionId: neighboringSectionIndexes.controlAfterPointId,
+        anchorAfterSectionId: neighboringSectionIndexes.anchorAfterPointId,
+    } : {
+        sectionIndex: neighboringSectionIndexes.sectionBeforeIndex,
+        controlBeforeSectionId: neighboringSectionIndexes.controlBeforePointId,
+        anchorBeforeSectionId: neighboringSectionIndexes.anchorBeforePointId,
+        controlAfterSectionId: neighboringSectionIndexes.controlPointId,
+        anchorAfterSectionId: neighboringSectionIndexes.anchorPointId,
+    };
 
     // generate LUTs for each section, if exists
-    const sectionBeforeLut = sectionIndex*2-2 >= 0 ? generateBezierLut(
-        getPointOnCurve(points, curve, sectionIndex*2-2),
-        getPointOnCurve(points, curve, sectionIndex*2-1),
-        controlPoint,
-        point,
-    ) : null;
-    const sectionAfterLut = sectionIndex*2+1 < curve.length ? generateBezierLut(
-        controlPoint,
-        point,
-        getPointOnCurve(points, curve, sectionIndex*2  ),
-        getPointOnCurve(points, curve, sectionIndex*2+1),
-    ) : null;
+    const sectionBeforeLut = (sectionIndex != undefined || isAfter)
+        ? generateBezierLut(
+            getPoint(points, controlBeforeSectionId!),
+            getPoint(points, anchorBeforeSectionId!),
+            controlPoint,
+            anchorPoint,
+        ) : undefined;
+    const sectionAfterLut = (sectionIndex != undefined || !isAfter)
+        ? generateBezierLut(
+            controlPoint,
+            anchorPoint,
+            getPoint(points, controlAfterSectionId!),
+            getPoint(points, anchorAfterSectionId!),
+        ) : undefined;
 
-    // accumulate existing LUTs into array
-    const sectionLuts = [sectionBeforeLut, sectionAfterLut].filter((lut) => lut != null);
+    console.log(isAfter, sectionIndex, sectionBeforeLut, sectionAfterLut);
 
     // return relevant data
-    return { sectionIndex, sectionLuts };
+    return { sectionIndex, sectionBeforeLut, sectionAfterLut };
 }

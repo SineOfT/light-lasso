@@ -117,7 +117,7 @@ const Main = ({
             if (pointLocation != undefined) {
                 const { curve, controlPointIndex, anchorPointIndex } = pointLocation;
                 const controlPoint = getPointOnCurve(points, curve, controlPointIndex);
-                const anchorPoint = getPointOnCurve(points, curve, anchorPointIndex);
+                const anchorPoint  = getPointOnCurve(points, curve, anchorPointIndex);
                 const invControlPoint = getInvPos(controlPoint, anchorPoint);
                 if (anchorPointIndex > 1) { // if first anchor, no control point before
                     drawnPoints.push({ point: controlPoint, selected: false });

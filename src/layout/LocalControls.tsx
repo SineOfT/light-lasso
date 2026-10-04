@@ -1,9 +1,10 @@
+import { getPointLocationOnCurve } from '../scripts/curves';
 import SliderNumberInput from '../templates/SliderNumberInput';
 import InputSet from '../templates/InputSet';
 import Button from '../templates/Button';
 
 import type { pos } from '../scripts/pos';
-import { getPointLocationOnCurve, type curve } from '../scripts/curves';
+import type { curve } from '../scripts/curves';
 
 /**
  * component defines controls to adjust local points and curves
@@ -19,7 +20,7 @@ function LocalControls({
     /** the ID of the currently selected point, or null if none selected */
     selectedPointId: string|null,
     /** function adds a new point at a given index of a given curve */
-    onAddPoint: (curveId: string, pointIndex: number) => void,
+    onAddPoint: (curveId: string, pointIndex: number, isAfter: boolean) => void,
     /** function updates the currently selected point */
     onUpdateSelected: (pointId: string|null) => void,
 }) {
@@ -71,10 +72,10 @@ function LocalControls({
         </InputSet>
         <InputSet title="Add Point">
             <Button title="+ Add Point Before"
-                onClick={() => { onAddPoint(curveId, anchorPointIndex); }}
+                onClick={() => { onAddPoint(curveId, anchorPointIndex, false); }}
             />
             <Button title="Add Point After +"
-                onClick={() => { onAddPoint(curveId, anchorPointIndex+1); }}
+                onClick={() => { onAddPoint(curveId, anchorPointIndex, true); }}
             />
         </InputSet>
     </div>);
