@@ -1,12 +1,28 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { SELECTABLE_RADIUS } from '../scripts/constants';
 import { getInvPos, posAdd, posSub, posWithin } from '../scripts/pos';
-import { isPointControl, getPointLocationOnCurve, getPointOnCurve } from '../scripts/curves';
+import { getPoint, getPointLocation } from '../scripts/curves';
 
 import type { MouseEvent } from 'react';
 import type { pos } from '../scripts/pos';
 import type { curve } from '../scripts/curves';
 import type { lut } from '../scripts/lut';
+
+/**
+ * interface defines data stored about point that can be dragged on screen
+ */
+interface draggablePoint {
+    /** ID of the point */
+    id: string,
+    /** position of the point */
+    point: pos,
+    /** position of the point this point is controlling, if set */
+    controlForPoint?: pos,
+    /** whether or not this point is a psuedo-point that is an inverse of another point */
+    isInverse: boolean,
+    /** whether or not this point is currently selected */
+    isSelected: boolean,
+}
 
 /**
  * component defines main canvas, which draws the lasso and exposes touch controls
@@ -48,6 +64,56 @@ const Main = ({
     // a ref to the ID of the animation loop, used to stop the animation loop
     const drawLoopIdRef = useRef<number|null>(null);
 
+    // holds all points that can be dragged
+    const draggablePoints = useMemo(() =>
+        Object.values(curves).flatMap((curve) =>
+            curve.flatMap(({ controlPointId, anchorPointId }, pointIndex) => {
+                // check whether this point selected
+                const isSelected = selectedPointId === anchorPointId;
+                
+                // find anchor point
+                const anchorPoint  = getPoint(points, anchorPointId);
+
+                // create list to hold all draggable points at this location
+                const currDraggablePoints: draggablePoint[] = [];
+                
+                // if anchor point selected, add control points to list of draggable points
+                if (isSelected) {
+                    const controlPoint = getPoint(points, controlPointId);
+                    const invControlPoint = getInvPos(controlPoint, anchorPoint);
+                    // if first point, no control point
+                    if (pointIndex > 0) {
+                        currDraggablePoints.push({
+                            id: controlPointId,
+                            point: controlPoint,
+                            controlForPoint: anchorPoint,
+                            isInverse: false,
+                            isSelected,
+                        });
+                    }
+                    // if last point, no inverse control point
+                    if (pointIndex < curve.length-1) {
+                        currDraggablePoints.push({
+                            id: controlPointId,
+                            point: invControlPoint,
+                            controlForPoint: anchorPoint,
+                            isInverse: true,
+                            isSelected
+                        });
+                    }
+                }
+
+                // add anchor point to draggable points list
+                currDraggablePoints.push(
+                    { id: anchorPointId, point: anchorPoint, isInverse: false, isSelected },
+                );
+
+                // add draggable points to accumulating list
+                return currDraggablePoints;
+            })
+        )
+    , [curves, points, selectedPointId]);
+
     // effect updates canvas dimensions when resolution changes
     useEffect(() => {
         if (canvasRef.current == null) { return; }
@@ -66,7 +132,7 @@ const Main = ({
 
         // define draw loop
         const drawLoop = () => {
-            draw(canvas, ctx);
+            draw(canvas, ctx, draggablePoints);
             if (drawLoopIdRef.current != null) {
                 drawLoopIdRef.current = window.requestAnimationFrame(drawLoop);
             }
@@ -83,7 +149,7 @@ const Main = ({
             }
         }
 
-    }, [points, curves, selectedPointId]);
+    }, [draggablePoints]);
 
     // effect stops drag when mouse lifted
     useEffect(() => {
@@ -102,34 +168,15 @@ const Main = ({
 
     /**
      * function draws the points and curves on the canvas, clearing previous
+     * @param canvas reference to the HTML canvas in DOM
+     * @param ctx 2D context for the canvas
+     * @param draggablePoints list of all points that are currently draggable
      */
-    const draw = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
-        // determine which points need to be drawn based on selection
-        // filter out control points
-        const drawnPoints = Object.entries(points)
-            .filter((_, i) => !isPointControl(i))
-            .map(([pointId, point]) => ({ point, selected: pointId === selectedPointId }));
-        // draw line between control point and inverse control point
-        const controlLines = [];
-        // if point selected, change color and include control points
-        if (selectedPointId != null) {
-            const pointLocation = getPointLocationOnCurve(curves, selectedPointId);
-            if (pointLocation != undefined) {
-                const { curve, controlPointIndex, anchorPointIndex } = pointLocation;
-                const controlPoint = getPointOnCurve(points, curve, controlPointIndex);
-                const anchorPoint  = getPointOnCurve(points, curve, anchorPointIndex);
-                const invControlPoint = getInvPos(controlPoint, anchorPoint);
-                if (anchorPointIndex > 1) { // if first anchor, no control point before
-                    drawnPoints.push({ point: controlPoint, selected: false });
-                    controlLines.push({ anchorPoint, controlPoint });
-                }
-                if (anchorPointIndex < curve.length-1) { // if last anchor, no control point after
-                    drawnPoints.push({ point: invControlPoint, selected: false });
-                    controlLines.push({ anchorPoint, controlPoint: invControlPoint });
-                }
-            }
-        }
-
+    const draw = (
+        canvas: HTMLCanvasElement,
+        ctx: CanvasRenderingContext2D,
+        draggablePoints: draggablePoint[]
+    ) => {
         // clear previous drawing
         ctx.fillStyle = '#333';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -146,22 +193,22 @@ const Main = ({
             });
         });
 
-        // draw each line between control points
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#DDD';
-        controlLines.forEach(({ anchorPoint, controlPoint }) => {
-            ctx.beginPath();
-            ctx.moveTo(anchorPoint.x, anchorPoint.y);
-            ctx.lineTo(controlPoint.x, controlPoint.y);
-            ctx.stroke();
-        });
-
         // draw each point
-        drawnPoints.forEach(({ point, selected }) => {
-            ctx.fillStyle = selected ? '#F00' : '#DDD';
+        draggablePoints.forEach(({ point, controlForPoint, isSelected }) => {
+            ctx.fillStyle = isSelected ? '#F00' : '#DDD';
             ctx.beginPath();
             ctx.arc(point.x, point.y, SELECTABLE_RADIUS, 0, Math.PI * 2, false);
             ctx.fill();
+
+            // if control point, draw line to anchor
+            if (controlForPoint != undefined) {
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#DDD';
+                ctx.beginPath();
+                ctx.moveTo(point.x, point.y);
+                ctx.lineTo(controlForPoint.x, controlForPoint.y);
+                ctx.stroke();
+            }
         });
     }
 
@@ -170,24 +217,6 @@ const Main = ({
      * @param e event provided by the event listener
      */
     const handleDragStart = (e: MouseEvent<HTMLCanvasElement>) => {
-        // find points that can be dragged
-        const draggablePoints = Object.values(curves).flatMap((curve) =>
-            curve.flatMap((pointId, pointIndex) => {
-                if (isPointControl(pointIndex)) {
-                    const controlPoint = getPointOnCurve(points, curve, pointIndex);
-                    const anchorPoint = getPointOnCurve(points, curve, pointIndex+1);
-                    const invControlPoint = getInvPos(controlPoint, anchorPoint);
-                    return [
-                        { pointId, point: controlPoint, isInverse: false },
-                        { pointId, point: invControlPoint, isInverse: true }
-                    ];
-                } else {
-                    const point = getPointOnCurve(points, curve, pointIndex);
-                    return [{ pointId, point, isInverse: false }];
-                }
-            })
-        );
-
         // find points within mouse position
         const mousePos = { x: e.clientX, y: e.clientY };
         const clickedPoints = draggablePoints.filter(({ point }) => posWithin(point, mousePos, SELECTABLE_RADIUS));
@@ -198,14 +227,13 @@ const Main = ({
             return;
         }
 
-        // determine location of first clicked point, using current selected point if is one of clicked
-        const { pointId: clickedPointId, point: clickedPoint, isInverse } = 
-            clickedPoints.find(({ pointId }) => pointId === selectedPointId) ?? clickedPoints[0]!;
-        const pointLocation = getPointLocationOnCurve(curves, clickedPointId);
+        // determine location of first clicked point
+        const { id: clickedPointId, point: clickedPoint, isInverse } = clickedPoints[0]!;
+        const pointLocation = getPointLocation(curves, clickedPointId);
         if (pointLocation == undefined) { return; }
-        const { curve, isControlPoint, controlPointIndex, anchorPointIndex } = pointLocation;
-        const controlPointId = curve[controlPointIndex]!;
-        const anchorPointId = curve[anchorPointIndex]!;
+        const { curve, isControlPoint, pointIndex } = pointLocation;
+        const controlPointId = curve[pointIndex]!.controlPointId;
+        const anchorPointId = curve[pointIndex]!.anchorPointId;
 
         // set point type
         if (!isControlPoint) {

@@ -1,19 +1,17 @@
 import { generateId } from './util';
-import { EMPTY_POS } from './pos';
+import { EMPTY_POS, posAdd, posSub, posWithDistance, getInvPos, posLerp } from './pos';
 
 import type { pos } from './pos';
-import type { lut } from './lut';
+
+/**
+ * how much distance to put when adding a new point to either the very start or end of a curve
+ */
+const ADD_EXTREME_OVERSHOOT = 50;
 
 /**
  * type represents curve that holds the IDs of all points in the curve, in order
  */
-export type curve = string[];
-
-/**
- * function gets whether point at given index on curve is control point
- * @param pointIndex the index of the point on the curve
- */
-export const isPointControl = (pointIndex: number) => pointIndex % 2 === 0;
+export type curve = { controlPointId: string, anchorPointId: string }[];
 
 /**
  * function gets the point with the given ID
@@ -53,14 +51,18 @@ export const getPointOnCurve = (
     points: Record<string, pos>,
     curve: curve,
     pointIndex: number,
+    isControl: boolean,
 ): pos => {
     // get point ID at index on curve, if exists
-    const pointId = curve[pointIndex];
-    if (pointId == undefined) {
+    const curvePointIds = curve[pointIndex];
+    if (curvePointIds == undefined) {
         console.warn('Tried to get out-of-bounds point at index %s on curve with length %d',
             pointIndex, curve.length);
         return EMPTY_POS;
     }
+
+    // get either control point or anchor point based on parameter
+    const pointId = isControl ? curvePointIds.controlPointId : curvePointIds.anchorPointId;
 
     // get point with ID
     return getPoint(points, pointId);
@@ -72,67 +74,27 @@ export const getPointOnCurve = (
  * @param pointId the ID of the point to locate
  * @returns the location of the point in curves, or undefined if non-existant
  */
-export const getPointLocationOnCurve = (
+export const getPointLocation = (
     curves: Record<string, curve>,
     pointId: string,
 ) => {
     // find curve point is within
-    const curveObj = Object.entries(curves).find(([_, curve]) => curve.includes(pointId));
+    const curveObj = Object.entries(curves)
+        .map(([curveId, curve]) => ({
+            curveId,
+            curve,
+            pointIndex: curve.findIndex(({ controlPointId, anchorPointId }) =>
+                pointId === controlPointId || pointId === anchorPointId)
+        }))
+        .find(({ pointIndex }) => pointIndex !== -1);
     if (curveObj == undefined) { return; }
-    const [curveId, curve] = curveObj;
+    const { curveId, curve, pointIndex } = curveObj;
 
-    // find index of point on curve
-    const pointIndex = curve.indexOf(pointId);
-    if (pointIndex === -1) { return; }
-
-    // determine whether point is control point or not
-    const isControlPoint = isPointControl(pointIndex);
-
-    // get control point and anchor point indexes and IDs relevant to point
-    const { controlPointIndex, anchorPointIndex } = isControlPoint
-        ? { controlPointIndex: pointIndex,   anchorPointIndex: pointIndex+1 }
-        : { controlPointIndex: pointIndex-1, anchorPointIndex: pointIndex   };
-
+    // determine whether point is control point
+    const isControlPoint = curve[pointIndex]!.controlPointId === pointId;
+    
     // return relevant data
-    return { curveId, curve, isControlPoint, controlPointIndex, anchorPointIndex };
-}
-
-/**
- * function finds indexes of sections before and after given point
- * 
- * works for both control poitns and anchor points
- * 
- * @param curve the curve the given point is on
- * @param pointIndex the point to find the neighboring sections for
- * @returns the indexes of the sections before and after the given point, or undefined if non-existant
- */
-export const getNeighboringSectionIndexes = (curve: curve, pointIndex: number) => {
-    // if point outisde bounds of curve, skip
-    if (pointIndex >= curve.length) { return; }
-
-    // find ID of control point relevant to given point
-    const controlPointIndex = pointIndex - (isPointControl(pointIndex) ? 0 : 1);
-    const controlPointId = curve[controlPointIndex]!;
-    const anchorPointId = curve[controlPointIndex+1]!;
-
-    // find indexes at which neighboring sections located
-    let sectionAfterIndex: number|undefined = Math.floor(pointIndex / 2);
-    let sectionBeforeIndex: number|undefined = sectionAfterIndex - 1;
-    if (sectionBeforeIndex < 0) { sectionBeforeIndex = undefined; }
-    if (sectionAfterIndex >= curve.length/2 - 1) { sectionAfterIndex = undefined; }
-
-    // find indexes of points that define each section
-    const controlBeforePointId = sectionBeforeIndex != undefined ? curve[controlPointIndex-2]! : undefined;
-    const anchorBeforePointId  = sectionBeforeIndex != undefined ? curve[controlPointIndex-1]! : undefined;
-    const controlAfterPointId  = sectionAfterIndex  != undefined ? curve[controlPointIndex+2]! : undefined;
-    const anchorAfterPointId   = sectionAfterIndex  != undefined ? curve[controlPointIndex+3]! : undefined;
-
-    // return relevant data
-    return {
-        controlPointIndex, controlPointId, anchorPointId,
-        sectionBeforeIndex, controlBeforePointId, anchorBeforePointId,
-        sectionAfterIndex,  controlAfterPointId,  anchorAfterPointId,
-    };
+    return { curveId, curve, pointIndex, isControlPoint };
 }
 
 /**
@@ -143,45 +105,97 @@ export const getNeighboringSectionIndexes = (curve: curve, pointIndex: number) =
  * 
  * @param points a record of all existing points
  * @param curve the curve to get the point from
- * @param curveId the ID of the curve to add the point to
- * @param pointIndex the index on the curve at which to add the point
+ * @param pointId the ID of the point next to the new point
+ * @param isAfter whether the point is added before or after the given point
  */
 export const getCurveFromAddPoint = (
     points: Record<string, pos>,
     curves: Record<string, curve>,
-    luts: Record<string, lut>,
-    curveId: string,
-    pointIndex: number,
+    pointId: string,
     isAfter: boolean,
 ) => {
-    // get curve
-    const curve = curves[curveId];
-    const lut = luts[curveId];
-    if (curve == undefined || lut == undefined || lut.length === 0) { return; }
-    if (pointIndex > curve.length) { return; } // ensure point index not out of bounds
+    // get location of point
+    const pointLocation = getPointLocation(curves, pointId);
+    if (pointLocation == undefined) { return };
+    const { curveId, curve, pointIndex } = pointLocation; 
 
-    // get LUT of section new point place on
-    const { controlPointIndex, sectionBeforeIndex, sectionAfterIndex }
-        = getNeighboringSectionIndexes(curve, pointIndex)!;
-    const sectionIndex = isAfter ? sectionAfterIndex : sectionBeforeIndex;
-    const sectionLut = sectionIndex != undefined ? lut[sectionIndex] : undefined;
-    const newPointIndex = controlPointIndex + (isAfter ? 2 : 0);
+    // get LUT of section new point placed on
+    const sectionIndex = pointIndex + (isAfter ? 0 : -1);
+    const sectionType = sectionIndex < 0               ? 'before'
+                      : sectionIndex >= curve.length-1 ? 'after'
+                      :                                  'within';
 
-    // determine position of new point on section by getting point halfway on LUT
-    let anchorPoint = sectionLut != undefined ? sectionLut[Math.floor(sectionLut.length/2)] : undefined;
-    if (anchorPoint == undefined) {
-        anchorPoint = getPointOnCurve(points, curve, pointIndex);
-    }
+    // determine position of new control and anchor point based on LUT and neighboring points
+    const { controlPoint, anchorPoint } =
+        sectionType === 'within' ? (() => {
+            // find IDs of neighboring points
+            const beforePoints = curve[sectionIndex]!;
+            const afterPoints  = curve[sectionIndex+1]!;
+
+            // find positions of relevant neighboring points
+            const beforeInvControlPoint = getPoint(points, beforePoints.controlPointId);
+            const beforeAnchorPoint     = getPoint(points, beforePoints.anchorPointId);
+            const afterControlPoint     = getPoint(points, afterPoints.controlPointId);
+            const afterAnchorPoint      = getPoint(points, afterPoints.anchorPointId);
+            const beforeControlPoint    = getInvPos(beforeInvControlPoint, beforeAnchorPoint);
+            
+            // find positions of intermediary positions
+            const newBeforeControlPoint = posLerp(beforeAnchorPoint, beforeControlPoint, 2);
+            const newAfterControlPoint  = posLerp( afterAnchorPoint,  afterControlPoint, 2);
+            const lerpMidPoint = posLerp(newBeforeControlPoint, newAfterControlPoint, 0.5);
+
+            // calculate new points
+            const controlPoint = posLerp(newBeforeControlPoint, lerpMidPoint, 0.5);
+            const anchorPoint = lerpMidPoint;
+            return { controlPoint, anchorPoint };
+        })()
+      : sectionType === 'before' ? (() => {
+            // calculate new points based on first points on curve
+            const firstControlPoint = getPointOnCurve(points, curve, 0, true);
+            const firstAnchorPoint  = getPointOnCurve(points, curve, 0, false);
+            const anchorPoint = posAdd(
+                firstControlPoint,
+                posWithDistance(posSub(firstControlPoint, firstAnchorPoint), ADD_EXTREME_OVERSHOOT),
+            );
+            const controlPoint = getInvPos(firstControlPoint, anchorPoint); // inversed
+            return { controlPoint, anchorPoint };
+        })()
+      : sectionType === 'after' ? (() => {
+            // calculate new points based on last points on curve
+            const lastInvControlPoint = getPointOnCurve(points, curve, curve.length-1, true);
+            const lastAnchorPoint     = getPointOnCurve(points, curve, curve.length-1, false);
+            const lastControlPoint    = getInvPos(lastInvControlPoint, lastAnchorPoint);
+            const anchorPoint = posAdd(
+                lastControlPoint,
+                posWithDistance(posSub(lastControlPoint, lastAnchorPoint), ADD_EXTREME_OVERSHOOT),
+            );
+            const controlPoint = lastControlPoint;
+            return { controlPoint, anchorPoint };
+        })()
+      : sectionType satisfies never;
 
     // generate IDs for new points
     const existingIds = Object.keys(points);
     const controlPointId = generateId(existingIds);
     const anchorPointId  = generateId([...existingIds, controlPointId]);
 
-    // return relevant data
+    // determine new curve
+    const newCurve = [...curve].toSpliced(sectionIndex+1, 0, { controlPointId, anchorPointId }) as curve;
+
+    // return functions that modifies points and curve
     return {
-        newPointIndex,
-        controlPointId, controlPoint: { ...anchorPoint } as pos,
-        anchorPointId, anchorPoint,
+        controlPoint,
+        anchorPoint,
+        updatePoints: (prevPoints: Record<string, pos>) => {
+            const newPoints = { ...prevPoints } as Record<string, pos>;
+            newPoints[controlPointId] = controlPoint;
+            newPoints[anchorPointId]  = anchorPoint;
+            return newPoints;
+        },
+        updateCurves: (prevCurves: Record<string, curve>) => {
+            const newCurves = { ...prevCurves } as Record<string, curve>;
+            newCurves[curveId] = newCurve;
+            return newCurves;
+        }
     };
 }

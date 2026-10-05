@@ -23,8 +23,16 @@ export const posAvg = (...pos: pos[]) => pos.length === 0 ? { ...EMPTY_POS } : p
 
 /** function finds the square distance of a position from the origin */
 export const posDistanceSqr = (pos: pos) => pos.x*pos.x + pos.y*pos.y;
+/** function finds the distance of a position from the origin */
+export const posDistance = (pos: pos) => Math.sqrt(posDistanceSqr(pos));
 /** function determines whether 2 positions are within a given distance */
 export const posWithin = (a: pos, b: pos, distance: number) => posDistanceSqr(posSub(a, b)) <= distance*distance;
+/** function changes a position to have a given distance from the origin, while maintaining direction */
+export const posWithDistance = (pos: pos, distance: number) =>
+    posDistanceSqr(pos) === 0 ? EMPTY_POS : posMul(pos, distance / posDistance(pos));
 
 /** function takes a position and an anchor, and finds the position that is opposite to the given position */
 export const getInvPos = (pos: pos, anchor: pos) => posSub(posMul(anchor, 2), pos);
+
+/** function finds the position which is linearly interpolated between 2 positions */
+export const posLerp = (a: pos, b: pos, t: number) => posAdd(posMul(a, 1-t), posMul(b, t));

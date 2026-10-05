@@ -1,4 +1,4 @@
-import { getPointLocationOnCurve } from '../scripts/curves';
+import { getPointLocation } from '../scripts/curves';
 import SliderNumberInput from '../templates/SliderNumberInput';
 import InputSet from '../templates/InputSet';
 import Button from '../templates/Button';
@@ -19,63 +19,42 @@ function LocalControls({
     curves: Record<string, curve>,
     /** the ID of the currently selected point, or null if none selected */
     selectedPointId: string|null,
-    /** function adds a new point at a given index of a given curve */
-    onAddPoint: (curveId: string, pointIndex: number, isAfter: boolean) => void,
+    /** function adds a new point before or after a given point */
+    onAddPoint: (pointId: string, isAfter: boolean) => void,
     /** function updates the currently selected point */
     onUpdateSelected: (pointId: string|null) => void,
 }) {
-
-    /**
-     * function finds the point before and after the current selected point on the curve
-     * it is located on, if they exists
-     * @returns the point before and after the selected point, or undefined if they do not exist
-     */
-    const findNeighboringPointIds = (curve: curve, pointIndex: number) => {
-        // if no point selected, no neighboring points
-        if (selectedPointId == null) { return; }
-
-        // find location of point in curves
-
-        // find points before and after selected point on curve, skipping control points
-        const pointBeforeId = pointIndex-2 >= 0
-            ? curve[pointIndex-2]!
-            : null;
-        const pointAfterId  = pointIndex+2 < curve.length
-            ? curve[pointIndex+2]!
-            : null;
-
-        // return relevant data
-        return { pointBeforeId, pointAfterId };
-    }
-
     // if no point selected, nothing to show
     if (selectedPointId == null) { return <></>; }
 
     // find location of selected point in curves, showing nothing if non-existant
-    const pointLocation = getPointLocationOnCurve(curves, selectedPointId);
+    const pointLocation = getPointLocation(curves, selectedPointId);
     if (pointLocation == undefined) { return <></>; }
-    const { curveId, curve, anchorPointIndex } = pointLocation;
+    const { curve, pointIndex } = pointLocation;
 
     // find neighboring points
-    const neighboringPointIds = findNeighboringPointIds(curve, anchorPointIndex);
-    const { pointBeforeId, pointAfterId } = neighboringPointIds
-        ?? { pointBeforeId: null, pointAfterId: null };
+    const beforeAnchorPointId = pointIndex-1 >= 0
+        ? curve[pointIndex-1]!.anchorPointId
+        : undefined;
+    const afterAnchorPointId  = pointIndex+1 < curve.length
+        ? curve[pointIndex+1]!.anchorPointId
+        : undefined;
 
     return (<div className="p-m">
         <InputSet title="Traverse Points">
-            <Button title="< Point Before" disabled={pointBeforeId == null}
-                onClick={() => { onUpdateSelected(pointBeforeId); }}
+            <Button title="< Point Before" disabled={beforeAnchorPointId == undefined}
+                onClick={() => { onUpdateSelected(beforeAnchorPointId!); }}
             />
-            <Button title="Point After >"  disabled={pointAfterId  == null}
-                onClick={() => { onUpdateSelected(pointAfterId); }}
+            <Button title="Point After >"  disabled={afterAnchorPointId  == undefined}
+                onClick={() => { onUpdateSelected(afterAnchorPointId!); }}
             />
         </InputSet>
         <InputSet title="Add Point">
             <Button title="+ Add Point Before"
-                onClick={() => { onAddPoint(curveId, anchorPointIndex, false); }}
+                onClick={() => { onAddPoint(selectedPointId, false); }}
             />
             <Button title="Add Point After +"
-                onClick={() => { onAddPoint(curveId, anchorPointIndex, true); }}
+                onClick={() => { onAddPoint(selectedPointId, true); }}
             />
         </InputSet>
     </div>);
