@@ -107,6 +107,7 @@ export const getPointLocation = (
  * @param curve the curve to get the point from
  * @param pointId the ID of the point next to the new point
  * @param isAfter whether the point is added before or after the given point
+ * @returns functions that updates affected curve and points
  */
 export const getCurveFromAddPoint = (
     points: Record<string, pos>,
@@ -119,13 +120,13 @@ export const getCurveFromAddPoint = (
     if (pointLocation == undefined) { return };
     const { curveId, curve, pointIndex } = pointLocation; 
 
-    // get LUT of section new point placed on
+    // get section new point placed on
     const sectionIndex = pointIndex + (isAfter ? 0 : -1);
     const sectionType = sectionIndex < 0               ? 'before'
                       : sectionIndex >= curve.length-1 ? 'after'
                       :                                  'within';
 
-    // determine position of new control and anchor point based on LUT and neighboring points
+    // determine position of new control and anchor point based on neighboring points
     const { controlPoint, anchorPoint } =
         sectionType === 'within' ? (() => {
             // find IDs of neighboring points
@@ -180,7 +181,7 @@ export const getCurveFromAddPoint = (
     const anchorPointId  = generateId([...existingIds, controlPointId]);
 
     // determine new curve
-    const newCurve = [...curve].toSpliced(sectionIndex+1, 0, { controlPointId, anchorPointId }) as curve;
+    const newCurve = curve.toSpliced(sectionIndex+1, 0, { controlPointId, anchorPointId }) as curve;
 
     // return functions that modifies points and curve
     return {
@@ -198,4 +199,37 @@ export const getCurveFromAddPoint = (
             return newCurves;
         }
     };
+}
+
+/**
+ * function generates changes that need to be made to curve when point deleted
+ * @param curves a record of all existing curves
+ * @param pointId ID of the point to delete
+ * @returns functions that update affected curve and points
+ */
+export const getCurveFromDeletePoint = (
+    curves: Record<string, curve>,
+    pointId: string,
+) => {
+    // get location of point
+    const pointLocation = getPointLocation(curves, pointId);
+    if (pointLocation == undefined) { return; }
+    const { curveId, curve, pointIndex } = pointLocation;
+
+    // determine new curve
+    const newCurve = curve.toSpliced(pointIndex, 1);
+
+    // return functions that updates curve and points
+    return {
+        updatePoints: (prevPoints: Record<string, pos>) => {
+            const newPoints = { ...prevPoints } as Record<string, pos>;
+            delete newPoints[pointId];
+            return newPoints;
+        },
+        updateCurves: (prevCurves: Record<string, curve>) => {
+            const newCurves = { ...prevCurves } as Record<string, curve>;
+            newCurves[curveId] = newCurve;
+            return newCurves;
+        }
+    }
 }

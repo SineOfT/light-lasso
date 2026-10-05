@@ -1,9 +1,7 @@
 import { getPointLocation } from '../scripts/curves';
-import SliderNumberInput from '../templates/SliderNumberInput';
 import InputSet from '../templates/InputSet';
 import Button from '../templates/Button';
 
-import type { pos } from '../scripts/pos';
 import type { curve } from '../scripts/curves';
 
 /**
@@ -13,6 +11,7 @@ function LocalControls({
     curves,
     selectedPointId,
     onAddPoint,
+    onDeletePoint,
     onUpdateSelected,
 }: {
     /** a record of all existing curves */
@@ -21,6 +20,8 @@ function LocalControls({
     selectedPointId: string|null,
     /** function adds a new point before or after a given point */
     onAddPoint: (pointId: string, isAfter: boolean) => void,
+    /** function deletes point */
+    onDeletePoint: (pointId: string) => void,
     /** function updates the currently selected point */
     onUpdateSelected: (pointId: string|null) => void,
 }) {
@@ -55,6 +56,11 @@ function LocalControls({
             />
             <Button title="Add Point After +"
                 onClick={() => { onAddPoint(selectedPointId, true); }}
+            />
+        </InputSet>
+        <InputSet title="Delete Point">
+            <Button title="- Delete Point"
+                onClick={() => { onDeletePoint(selectedPointId); }}
             />
         </InputSet>
     </div>);

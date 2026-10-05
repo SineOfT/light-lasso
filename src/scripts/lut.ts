@@ -57,7 +57,7 @@ export const generateBezierLut = (
  * @param curves a record of all existing curves
  * @param pointId the ID of the updated point
  * @param newPoint the new position of the updated point
- * @returns the data for up to 2 changed LUT curve sections
+ * @returns function that updates affected LUT
  */
 export const getLutFromUpdatePoint = (
     points: Record<string, pos>,
@@ -113,15 +113,15 @@ export const getLutFromUpdatePoint = (
 }
 
 /**
- * function generates the changes that need to be amde to a LUT for a curve when a point is added
- * 
+ * function generates the changes that need to be made to a LUT for a curve when a point is added
  * @param points a record of all existing points
  * @param curves  a record of all existing curves
- * @param curveId the ID of the modified curve
- * @param pointIndex the index at which the new point was added on the curve
- * @param controlPoint the position of the new control point
- * @param point the position of the new point
- * @returns the data for up to 2 changed LUT curve sections
+ * @param luts a record of all existing LUTs
+ * @param pointId ID of a point relative to where the new point is added
+ * @param isAfter whether or not the new point is added before or after the given point
+ * @param controlPoint position of the new control point
+ * @param anchorPoint position of the new anchor point
+ * @returns function that updates affected LUT
  */
 export const getLutFromAddPoint = (
     points: Record<string, pos>,
@@ -183,4 +183,59 @@ export const getLutFromAddPoint = (
         newLuts[curveId] = newLut;
         return newLuts;
     }
+}
+
+/**
+ * function generates the changes that need to be made to a LUT for a curve when a point is added
+ * @param points a record of all existing points
+ * @param curves  a record of all existing curves
+ * @param luts a record of all existing LUTs
+ * @param pointId ID of deleted point
+ * @returns function that updates affected LUT
+ */
+export const getLutFromDeletePoint = (
+    points: Record<string, pos>,
+    curves: Record<string, curve>,
+    luts: Record<string, lut>,
+    pointId: string,
+) => {
+    // get location of point
+    const pointLocation = getPointLocation(curves, pointId);
+    if (pointLocation == undefined) { return; }
+    const { curveId, curve, pointIndex } = pointLocation;
+  
+    // get affected LUT
+    const curveLut = luts[curveId];
+    if (curveLut == undefined) { return; }
+
+    // determine type of section point was in
+    const sectionIndex = pointIndex - 1;
+    const sectionType = sectionIndex < 0               ? 'before'
+                      : sectionIndex >= curve.length-2 ? 'after'
+                      :                                  'within';
+
+    // determine new LUT for affected curve
+    const newLut = [...curveLut] as lut;
+    if (sectionType === 'before') {
+        newLut.shift();
+    } else if (sectionType === 'after') {
+        newLut.pop();
+    } else if (sectionType === 'within') {
+        const newSectionLut = generateBezierLut(
+            getPointOnCurve(points, curve, sectionIndex, true),
+            getPointOnCurve(points, curve, sectionIndex, false),
+            getPointOnCurve(points, curve, sectionIndex+2, true),  // since +1 is deleted point
+            getPointOnCurve(points, curve, sectionIndex+2, false), //
+        );
+        newLut.splice(sectionIndex, 2, newSectionLut);
+    } else {
+        sectionType satisfies never;
+    }
+
+    // return function that updates LUT
+    return (prevLuts: Record<string, lut>) => {
+        const newLuts = { ...prevLuts } as Record<string, lut>
+        newLuts[curveId] = newLut;
+        return newLuts;
+    };
 }

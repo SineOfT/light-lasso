@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getCurveFromAddPoint } from './scripts/curves';
-import { generateBezierLut, getLutFromUpdatePoint, getLutFromAddPoint } from './scripts/lut';
+import { getCurveFromAddPoint, getCurveFromDeletePoint } from './scripts/curves';
+import { generateBezierLut, getLutFromUpdatePoint, getLutFromAddPoint, getLutFromDeletePoint } from './scripts/lut';
 import Main from './layout/Main';
 import Sidebar from './layout/Sidebar';
 import LocalControls from './layout/LocalControls';
@@ -90,10 +90,7 @@ const App = () => {
         // calculate new curves from add
         const data = getCurveFromAddPoint(points, curves, pointId, isAfter);
         if (data == undefined) { return; }
-        const {
-            controlPoint, anchorPoint,
-            updatePoints, updateCurves
-        } = data;
+        const { controlPoint, anchorPoint, updatePoints, updateCurves } = data;
 
         // update based on updater functions
         setPoints(updatePoints);
@@ -103,6 +100,24 @@ const App = () => {
         handleUpdateLutFromAddPoint(pointId, isAfter, controlPoint, anchorPoint);
     }
 
+    /**
+     * function handles deleting a point
+     * @param pointId ID of the point to delete
+     */
+    const handleDeletePoint = (pointId: string) => {
+        // calculate new curves from delete
+        const data = getCurveFromDeletePoint(curves, pointId);
+        if (data == undefined) { return; }
+        const { updatePoints, updateCurves } = data;
+
+        // update based on updater functions
+        setPoints(updatePoints);
+        setCurves(updateCurves);
+        
+        // update LUT where affected by deleted point
+        handleUpdateLutFromDeletePoint(pointId);
+    }
+    
     /**
      * function updates the LUT where a point has been updated to a new position
      * 
@@ -142,6 +157,19 @@ const App = () => {
     }
 
     /**
+     * function updates the LUT where a point and respective control point has been deleted
+     * @param pointId ID of the deleted point
+     */
+    const handleUpdateLutFromDeletePoint = (pointId: string) => {
+        // calculate new LUTs from delete
+        const updateLuts = getLutFromDeletePoint(points, curves, luts, pointId);
+        if (updateLuts == undefined) { return; }
+
+        // update state based on updater function
+        setLuts(updateLuts);
+    }
+
+    /**
      * function handles updating the currently selected point
      * 
      * if null is passed in, the currently selected point is deselected
@@ -167,6 +195,7 @@ const App = () => {
                 curves={curves}
                 selectedPointId={selectedPointId}
                 onAddPoint={handleAddPoint}
+                onDeletePoint={handleDeletePoint}
                 onUpdateSelected={handleUpdateSelected}
             />
         </Sidebar>
