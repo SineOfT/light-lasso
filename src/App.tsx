@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getCurveFromAddPoint, getCurveFromDeletePoint } from './scripts/curves';
+import { addCurve, getCurveFromAddPoint, getCurveFromDeletePoint } from './scripts/curves';
 import { generateBezierLut, getLutFromUpdatePoint, getLutFromAddPoint, getLutFromDeletePoint } from './scripts/lut';
 import Main from './layout/Main';
 import Sidebar from './layout/Sidebar';
@@ -67,15 +67,17 @@ const App = () => {
         // if ID is not valid point, terminate
         if (!Object.hasOwn(points, pointId)) { return; }
 
-        // update point in state
+        // calculate new LUTs from update
+        const updateLuts = getLutFromUpdatePoint(points, curves, luts, pointId, newPoint);
+        if (updateLuts == undefined) { return; }
+
+        // update based on updater functions
         setPoints((prevPoints) => {
             const newPoints = { ...prevPoints };
             newPoints[pointId] = newPoint;
             return newPoints;
         });
-
-        // update LUT affected by point
-        handleUpdateLutFromUpdatePoint(pointId, newPoint);
+        setLuts(updateLuts);
     }
 
     /**
@@ -92,12 +94,15 @@ const App = () => {
         if (data == undefined) { return; }
         const { controlPoint, anchorPoint, updatePoints, updateCurves } = data;
 
+        // calculate new LUTs from add
+        const updateLuts = getLutFromAddPoint(
+            points, curves, luts, pointId, isAfter, controlPoint, anchorPoint);
+        if (updateLuts == undefined) { return; }
+
         // update based on updater functions
         setPoints(updatePoints);
         setCurves(updateCurves);
-        
-        // update LUT where affected by new point
-        handleUpdateLutFromAddPoint(pointId, isAfter, controlPoint, anchorPoint);
+        setLuts(updateLuts);
     }
 
     /**
@@ -110,65 +115,63 @@ const App = () => {
         if (data == undefined) { return; }
         const { updatePoints, updateCurves } = data;
 
-        // update based on updater functions
-        setPoints(updatePoints);
-        setCurves(updateCurves);
-        
-        // update LUT where affected by deleted point
-        handleUpdateLutFromDeletePoint(pointId);
-    }
-    
-    /**
-     * function updates the LUT where a point has been updated to a new position
-     * 
-     * @param pointId the ID of the updated point
-     * @param newPoint the new position of the updated point
-     */
-    const handleUpdateLutFromUpdatePoint = (pointId: string, newPoint: pos) => {        
-        // calculate new LUTs from update
-        const updateLuts = getLutFromUpdatePoint(points, curves, luts, pointId, newPoint);
-        if (updateLuts == undefined) { return; }
-
-        // update based on updater function
-        setLuts(updateLuts);
-    }
-
-    /**
-     * function updates the LUT where a point and respective control point has been added
-     * @param pointId ID of the point relative to where the new point is added
-     * @param isAfter whether the point is added before or after the given point
-     * @param controlPoint the new control point
-     * @param point the new anchor point
-     */
-    const handleUpdateLutFromAddPoint = (
-        pointId: string, isAfter: boolean,
-        controlPoint: pos, anchorPoint: pos,
-    ) => {
-        // calculate new LUTs from add
-        const updateLuts = getLutFromAddPoint(
-            points, curves, luts,
-            pointId, isAfter,
-            controlPoint, anchorPoint,
-        );
-        if (updateLuts == undefined) { return; }
-
-        // update state based on updater function
-        setLuts(updateLuts);
-    }
-
-    /**
-     * function updates the LUT where a point and respective control point has been deleted
-     * @param pointId ID of the deleted point
-     */
-    const handleUpdateLutFromDeletePoint = (pointId: string) => {
         // calculate new LUTs from delete
         const updateLuts = getLutFromDeletePoint(points, curves, luts, pointId);
         if (updateLuts == undefined) { return; }
 
-        // update state based on updater function
+        // update based on updater functions
+        setPoints(updatePoints);
+        setCurves(updateCurves);        
         setLuts(updateLuts);
     }
 
+    /**
+     * function handles adding new curve, with one point centered on canvas
+     */
+    const handleAddCurve = () => {
+        // calculate new curve from add
+        const { curveId, updatePoints, updateCurves } = addCurve(curves, resolution);
+
+        // update based on updater functions
+        setPoints(updatePoints);
+        setCurves(updateCurves);
+        setLuts((prevLuts: Record<string, lut>) => {
+            const newLuts = { ...prevLuts } as Record<string, lut>;
+            newLuts[curveId] = []; // only 1 point, so 0 sections
+            return newLuts;
+        });
+    }
+
+    /**
+     * function handles deleting given curve
+     * @param curveId ID of curve to delete
+     */
+    const handleDeleteCurve = (curveId: string) => {
+        // find IDs of all points in curve
+        const curve = curves[curveId];
+        if (curve == undefined) { return; }
+
+        // update states
+        setPoints((prevPoints: Record<string, pos>) => {
+            const newPoints = { ...prevPoints } as Record<string, pos>;
+            for (const pointId of curve) {
+                delete newPoints[pointId.controlPointId];
+                delete newPoints[pointId.anchorPointId];
+            }
+            return newPoints;
+        });
+        setCurves((prevCurves: Record<string, curve>) => {
+            const newCurves = { ...prevCurves } as Record<string, curve>;
+            delete newCurves[curveId];
+            return newCurves;
+        });
+        setLuts((prevLuts: Record<string, lut>) => {
+            const newLuts = { ...prevLuts } as Record<string, lut>;
+            delete newLuts[curveId];
+            return newLuts;
+        });
+    }
+    
     /**
      * function handles updating the currently selected point
      * 
@@ -196,6 +199,8 @@ const App = () => {
                 selectedPointId={selectedPointId}
                 onAddPoint={handleAddPoint}
                 onDeletePoint={handleDeletePoint}
+                onAddCurve={handleAddCurve}
+                onDeleteCurve={handleDeleteCurve}
                 onUpdateSelected={handleUpdateSelected}
             />
         </Sidebar>

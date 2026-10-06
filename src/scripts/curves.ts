@@ -233,3 +233,40 @@ export const getCurveFromDeletePoint = (
         }
     }
 }
+
+/**
+ * function adds new curve, with point positioned at center of canvas
+ * @param curves a record of all existing curves
+ * @param resolution dimensions of the canvas
+ * @returns functions that update affected curve and points
+ */
+export const addCurve = (curves: Record<string, curve>, resolution: pos) => {
+    // create points to add on new curve
+    const anchorPoint = { x: resolution.x / 2, y: resolution.y / 2 } as pos;
+    const controlPoint = { x: anchorPoint.x - ADD_EXTREME_OVERSHOOT, y: anchorPoint.y } as pos;
+
+    // generate ID for curve and point
+    const existingIds = Object.keys(curves);
+    const curveId = generateId(existingIds);
+    const controlPointId = generateId([...existingIds, curveId]);
+    const anchorPointId = generateId([...existingIds, curveId, controlPointId]);
+
+    // determine new curve
+    const newCurve = [{ controlPointId, anchorPointId }] as curve;
+
+    // return function that adds curve and point
+    return {
+        curveId,
+        updatePoints: (prevPoints: Record<string, pos>) => {
+            const newPoints = { ...prevPoints } as Record<string, pos>;
+            newPoints[controlPointId] = controlPoint;
+            newPoints[anchorPointId]  = anchorPoint;
+            return newPoints;
+        },
+        updateCurves: (prevCurves: Record<string, curve>) => {
+            const newCurves = { ...prevCurves } as Record<string, curve>;
+            newCurves[curveId] = newCurve;
+            return newCurves;
+        },
+    };
+}

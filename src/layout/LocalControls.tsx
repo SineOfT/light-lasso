@@ -1,6 +1,6 @@
-import { getPointLocation } from '../scripts/curves';
 import InputSet from '../templates/InputSet';
 import Button from '../templates/Button';
+import SelectedPointControls from './SelectedPointControls';
 
 import type { curve } from '../scripts/curves';
 
@@ -12,6 +12,8 @@ function LocalControls({
     selectedPointId,
     onAddPoint,
     onDeletePoint,
+    onAddCurve,
+    onDeleteCurve,
     onUpdateSelected,
 }: {
     /** a record of all existing curves */
@@ -22,48 +24,32 @@ function LocalControls({
     onAddPoint: (pointId: string, isAfter: boolean) => void,
     /** function deletes point */
     onDeletePoint: (pointId: string) => void,
+    /** function adds new curve with one default point */
+    onAddCurve: () => void,
+    /** function deletes given curve */
+    onDeleteCurve: (curveId: string) => void, 
     /** function updates the currently selected point */
     onUpdateSelected: (pointId: string|null) => void,
 }) {
-    // if no point selected, nothing to show
-    if (selectedPointId == null) { return <></>; }
-
-    // find location of selected point in curves, showing nothing if non-existant
-    const pointLocation = getPointLocation(curves, selectedPointId);
-    if (pointLocation == undefined) { return <></>; }
-    const { curve, pointIndex } = pointLocation;
-
-    // find neighboring points
-    const beforeAnchorPointId = pointIndex-1 >= 0
-        ? curve[pointIndex-1]!.anchorPointId
-        : undefined;
-    const afterAnchorPointId  = pointIndex+1 < curve.length
-        ? curve[pointIndex+1]!.anchorPointId
-        : undefined;
-
-    return (<div className="p-m">
-        <InputSet title="Traverse Points">
-            <Button title="< Point Before" disabled={beforeAnchorPointId == undefined}
-                onClick={() => { onUpdateSelected(beforeAnchorPointId!); }}
-            />
-            <Button title="Point After >"  disabled={afterAnchorPointId  == undefined}
-                onClick={() => { onUpdateSelected(afterAnchorPointId!); }}
-            />
-        </InputSet>
-        <InputSet title="Add Point">
-            <Button title="+ Add Point Before"
-                onClick={() => { onAddPoint(selectedPointId, false); }}
-            />
-            <Button title="Add Point After +"
-                onClick={() => { onAddPoint(selectedPointId, true); }}
-            />
-        </InputSet>
-        <InputSet title="Delete Point">
-            <Button title="- Delete Point"
-                onClick={() => { onDeletePoint(selectedPointId); }}
-            />
-        </InputSet>
-    </div>);
+    return (
+        <div className="p-m">
+            {selectedPointId && 
+                <SelectedPointControls
+                    curves={curves}
+                    selectedPointId={selectedPointId!}
+                    onAddPoint={onAddPoint}
+                    onDeletePoint={onDeletePoint}
+                    onDeleteCurve={onDeleteCurve}
+                    onUpdateSelected={onUpdateSelected}
+                />
+            }
+            <InputSet title="Add Curve">
+                <Button title="+ Add Curve"
+                    onClick={() => { onAddCurve(); }}
+                />
+            </InputSet>
+        </div>
+    );
 }
 
 export default LocalControls;
