@@ -1,5 +1,5 @@
 import { generateId } from './util';
-import { EMPTY_POS, posAdd, posSub, posWithDistance, getInvPos, posLerp } from './pos';
+import { EMPTY_POS, posAdd, posSub, posWithDistance, getInvPos, posLerp, posRound } from './pos';
 
 import type { pos } from './pos';
 
@@ -8,10 +8,11 @@ import type { pos } from './pos';
  */
 const ADD_EXTREME_OVERSHOOT = 50;
 
-/**
- * type represents curve that holds the IDs of all points in the curve, in order
- */
+/** type represents curve that holds the IDs of all points in the curve, in order */
 export type curve = { controlPointId: string, anchorPointId: string }[];
+
+/** type represents description of selected point, indicating ID and if is inverse control point */
+export type selectedPointData = { id: string, isInverse: boolean };
 
 /**
  * function gets the point with the given ID
@@ -148,7 +149,10 @@ export const getCurveFromAddPoint = (
             // calculate new points
             const controlPoint = posLerp(newBeforeControlPoint, lerpMidPoint, 0.5);
             const anchorPoint = lerpMidPoint;
-            return { controlPoint, anchorPoint };
+            return { // round positions to nearest integer
+                controlPoint: posRound(controlPoint),
+                anchorPoint:  posRound(anchorPoint),
+            };
         })()
       : sectionType === 'before' ? (() => {
             // calculate new points based on first points on curve
@@ -159,7 +163,10 @@ export const getCurveFromAddPoint = (
                 posWithDistance(posSub(firstControlPoint, firstAnchorPoint), ADD_EXTREME_OVERSHOOT),
             );
             const controlPoint = getInvPos(firstControlPoint, anchorPoint); // inversed
-            return { controlPoint, anchorPoint };
+            return { // round positions to nearest integer
+                controlPoint: posRound(controlPoint),
+                anchorPoint:  posRound(anchorPoint),
+            };
         })()
       : sectionType === 'after' ? (() => {
             // calculate new points based on last points on curve
@@ -171,7 +178,10 @@ export const getCurveFromAddPoint = (
                 posWithDistance(posSub(lastControlPoint, lastAnchorPoint), ADD_EXTREME_OVERSHOOT),
             );
             const controlPoint = lastControlPoint;
-            return { controlPoint, anchorPoint };
+            return { // round positions to nearest integer
+                controlPoint: posRound(controlPoint),
+                anchorPoint:  posRound(anchorPoint),
+            };
         })()
       : sectionType satisfies never;
 

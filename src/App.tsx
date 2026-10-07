@@ -7,20 +7,20 @@ import LocalControls from './layout/LocalControls';
 import './styles/App.css'
 
 import type { pos } from './scripts/pos';
-import type { curve } from './scripts/curves';
+import type { curve, selectedPointData } from './scripts/curves';
 import type { lut } from './scripts/lut';
 
 const App = () => {
     // the dimensions of the editable canvas, as an (x,y) position
-    const [resolution, setResolution] = useState({ x: 0, y: 0 });
+    const [resolution, setResolution] = useState<pos>({ x: 0, y: 0 });
     // a record of all existing points
     const [points, setPoints] = useState<Record<string, pos>>({ });
     // a record of all existing curves
     const [curves, setCurves] = useState<Record<string, curve>>({ });
     // a record of all existing LUTs
     const [luts, setLuts] = useState<Record<string, lut>>({ });
-    // the ID of the point that is currently selected
-    const [selectedPointId, setSelectedPointId] = useState<string|null>(null);
+    // the point that is currently selected
+    const [selectedPointData, setSelectedPointData] = useState<selectedPointData|null>(null);
 
     // effect updates states to temporary mock starting data
     useEffect(() => {
@@ -59,12 +59,11 @@ const App = () => {
 
     /**
      * function updates the point with the given ID to reflect the new values provided
-     * 
      * @param pointId the ID of the point to change
      * @param newPoint the new point
      */
     const handleUpdatePoint = (pointId: string, newPoint: pos) => {
-        // if ID is not valid point, terminate
+        // if point doesn't exist, skip
         if (!Object.hasOwn(points, pointId)) { return; }
 
         // calculate new LUTs from update
@@ -179,8 +178,8 @@ const App = () => {
      * 
      * @param pointId the ID of the point to set as the new selected point
      */
-    const handleUpdateSelected = (pointId: string|null) => {
-        setSelectedPointId(pointId);
+    const handleUpdateSelected = (selectedPointData: selectedPointData|null) => {
+        setSelectedPointData(selectedPointData);
     }
 
     return (<>
@@ -189,14 +188,16 @@ const App = () => {
             points={points}
             curves={curves}
             luts={luts}
-            selectedPointId={selectedPointId}
+            selectedPointData={selectedPointData}
             onUpdatePoint={handleUpdatePoint}
             onUpdateSelected={handleUpdateSelected}
         />
         <Sidebar direction="right" zIndex={1}>
             <LocalControls
+                points={points}
                 curves={curves}
-                selectedPointId={selectedPointId}
+                selectedPointData={selectedPointData}
+                onUpdatePoint={handleUpdatePoint}
                 onAddPoint={handleAddPoint}
                 onDeletePoint={handleDeletePoint}
                 onAddCurve={handleAddCurve}

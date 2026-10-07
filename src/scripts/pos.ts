@@ -36,3 +36,6 @@ export const getInvPos = (pos: pos, anchor: pos) => posSub(posMul(anchor, 2), po
 
 /** function finds the position which is linearly interpolated between 2 positions */
 export const posLerp = (a: pos, b: pos, t: number) => posAdd(posMul(a, 1-t), posMul(b, t));
+
+/** function rounds position to nearest integer position */
+export const posRound = (pos: pos): pos => ({ x: Math.round(pos.x), y: Math.round(pos.y) });

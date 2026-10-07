@@ -5,7 +5,7 @@ import { getPoint, getPointLocation } from '../scripts/curves';
 
 import type { MouseEvent } from 'react';
 import type { pos } from '../scripts/pos';
-import type { curve } from '../scripts/curves';
+import type { curve, selectedPointData } from '../scripts/curves';
 import type { lut } from '../scripts/lut';
 
 /**
@@ -32,7 +32,7 @@ const Main = ({
     points,
     curves,
     luts,
-    selectedPointId,
+    selectedPointData,
     onUpdatePoint,
     onUpdateSelected,
 }: {
@@ -44,12 +44,12 @@ const Main = ({
     curves: Record<string, curve>,
     /** a record of all existing LUTs */
     luts: Record<string, lut>,
-    /** the ID of the currently selected point, or null if none selected */
-    selectedPointId: string|null,
+    /** the currently selected point, or null if none selected */
+    selectedPointData: selectedPointData|null,
     /** function updates the given point to the given position */
-    onUpdatePoint: (pointId: string, newPoint: pos) => void,
+    onUpdatePoint: (pointId: string, newPos: pos) => void,
     /** function updates the current selected point */
-    onUpdateSelected: (pointId: string|null) => void,
+    onUpdateSelected: (pointId: selectedPointData|null) => void,
 }) => {
     // the ID of the control point currently being dragged
     const [dragControlPointId, setDragControlPointId] = useState<string|null>(null);
@@ -69,7 +69,12 @@ const Main = ({
         Object.values(curves).flatMap((curve) =>
             curve.flatMap(({ controlPointId, anchorPointId }, pointIndex) => {
                 // check whether this point selected
-                const isSelected = selectedPointId === anchorPointId;
+                const selectedPointType = 
+                    selectedPointData?.id === anchorPointId
+                        ? 'anchor'
+                  : selectedPointData?.id === controlPointId
+                        ? selectedPointData.isInverse ? 'invControl' : 'control'
+                  : null;
                 
                 // find anchor point
                 const anchorPoint  = getPoint(points, anchorPointId);
@@ -77,8 +82,8 @@ const Main = ({
                 // create list to hold all draggable points at this location
                 const currDraggablePoints: draggablePoint[] = [];
                 
-                // if anchor point selected, add control points to list of draggable points
-                if (isSelected) {
+                // if some point in group selected, add control points to list of draggable points
+                if (selectedPointType != null) {
                     const controlPoint = getPoint(points, controlPointId);
                     const invControlPoint = getInvPos(controlPoint, anchorPoint);
                     // if first point, no control point
@@ -88,7 +93,7 @@ const Main = ({
                             point: controlPoint,
                             controlForPoint: anchorPoint,
                             isInverse: false,
-                            isSelected,
+                            isSelected: selectedPointType === 'control',
                         });
                     }
                     // if last point, no inverse control point
@@ -98,21 +103,26 @@ const Main = ({
                             point: invControlPoint,
                             controlForPoint: anchorPoint,
                             isInverse: true,
-                            isSelected
+                            isSelected: selectedPointType === 'invControl',
                         });
                     }
                 }
 
                 // add anchor point to draggable points list
                 currDraggablePoints.push(
-                    { id: anchorPointId, point: anchorPoint, isInverse: false, isSelected },
+                    {
+                        id: anchorPointId,
+                        point: anchorPoint,
+                        isInverse: false,
+                        isSelected: selectedPointType === 'anchor',
+                    },
                 );
 
                 // add draggable points to accumulating list
                 return currDraggablePoints;
             })
         )
-    , [curves, points, selectedPointId]);
+    , [curves, points, selectedPointData]);
 
     // effect updates canvas dimensions when resolution changes
     useEffect(() => {
@@ -238,12 +248,12 @@ const Main = ({
         // set point type
         if (!isControlPoint) {
             setDragPointType('anchor');
-            onUpdateSelected(clickedPointId); // if point is not control point, select
         } else if (isInverse) {
             setDragPointType('invControl');
         } else {
             setDragPointType('control');
         }
+        onUpdateSelected({ id: clickedPointId, isInverse }); // select point
 
         // calculate initial drag offset to begin drag
         setDragControlPointId(controlPointId);
@@ -282,7 +292,7 @@ const Main = ({
             const dragAnchorPoint = points[dragAnchorPointId];
             if (dragAnchorPoint == undefined) { return; }
             const invPos = getInvPos(pos, dragAnchorPoint);
-            onUpdatePoint(dragControlPointId, invPos);            
+            onUpdatePoint(dragControlPointId, invPos);
 
         // if anchor point, set position & update control position to remain relative
         } else {

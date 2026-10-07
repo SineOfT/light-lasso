@@ -17,12 +17,35 @@ legend {
     font-size: 1.2em;
 }
 
+fieldset.input-set {
+    border: none;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+}
+fieldset.input-set > * {
+    flex-basis: 0;
+    flex-grow: 1;
+}
+
 fieldset.slider-number-input {
     border: none;
     width: 100%;
     display: flex;
     flex-direction: row;
     gap: 0.5rem;
+}
+
+fieldset.pos-input {
+    border: none;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+}
+fieldset.pos-input > div.number-input {
+    flex-grow: 1;
 }
 
 div.slider-input {
@@ -36,17 +59,14 @@ div.number-input {
     flex-shrink: 1;
 }
 
-fieldset.input-set {
-    border: none;
-    width: 100%;
+div.input-inline {
     display: flex;
     flex-direction: row;
-    gap: 0.5rem;
+    align-items: center;
 }
-
-fieldset.input-set > * {
-    flex-basis: 0;
-    flex-grow: 1;
+div.input-inline > label::after {
+    content: ": ";
+    padding-inline-end: 0.2rem;
 }
 
 .button-input {
@@ -57,7 +77,6 @@ fieldset.input-set > * {
     color: black;
     background-color: var(--color-controls-bg);
 }
-
 .button-input[disabled] {
     color: black;
     background-color: var(--color-controls);
