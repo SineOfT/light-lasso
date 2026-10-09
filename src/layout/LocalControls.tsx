@@ -1,75 +1,72 @@
+import { updateCurveFromAdd } from '../scripts/curve';
 import InputSet from '../templates/InputSet';
 import Button from '../templates/Button';
-import SelectedPointControls from './SelectedPointControls';
+import SelectedPointTraversalControls from './SelectedPointTraversalControls';
+import SelectedPointAddDeleteControls from './SelectedPointAddDeleteControls';
+import SelectedPointPositionControls from './SelectedPointPositionControls';
+import SelectedPointRadiusControls from './SelectedPointRadiusControls';
 
-import type { pos } from '../scripts/pos';
-import type { curve, selectedPointData } from '../scripts/curve';
-import type { pointDataKey, pointData } from '../scripts/pointData';
+import type { point, selectedPoint } from '../scripts/point';
+import type { curve } from '../scripts/curve';
+import type { pointData } from '../scripts/pointData';
+import type { stateUpdaterFunctions } from '../App';
 
 /** component defines controls to adjust local points and curves */
 const LocalControls = ({
     points,
-    curves,
     radiusDatas,
-    selectedPointData,
-    onUpdatePoint,
-    onAddPoint,
-    onDeletePoint,
-    onAddCurve,
-    onDeleteCurve,
-    onUpdateRadiusOnPoint,
-    onAddRadiusToPoint,
-    onDeleteRadiusFromPoint,
-    onUpdateSelected,
+    curves,
+    selectedPoint,
+    onUpdateState,
 }: {
     /** a record of all existing points */
-    points: Record<string, pos>,
-    /** a record of all existing curves */
-    curves: Record<string, curve>,
+    points: Map<string, point>,
     /** a record of all existing radius curves */
-    radiusDatas: Map<pointDataKey, pointData>,
+    radiusDatas: Map<string, pointData>,
+    /** a record of all existing curves */
+    curves: Map<string, curve>,
     /** the currently selected point, or null if none selected */
-    selectedPointData: selectedPointData|null,
-    /** function updates position of given point */
-    onUpdatePoint: (pointId: string, newPos: pos) => void,
-    /** function adds a new point before or after a given point */
-    onAddPoint: (pointId: string, isAfter: boolean) => void,
-    /** function deletes point */
-    onDeletePoint: (pointId: string) => void,
-    /** function adds new curve with one default point */
-    onAddCurve: () => void,
-    /** function deletes given curve */
-    onDeleteCurve: (curveId: string) => void,
-    /** function updates value of radius associated with given point */
-    onUpdateRadiusOnPoint: (pointId: string, radius: number) => void,
-    /** function adds radius to given point */
-    onAddRadiusToPoint: (pointId: string) => void,
-    /** function deletes radius from given point */
-    onDeleteRadiusFromPoint: (pointId: string) => void,
-    /** function updates the currently selected point */
-    onUpdateSelected: (pointId: selectedPointData|null) => void,
+    selectedPoint: selectedPoint|null,
+    /** function updates states based on updater function */
+    onUpdateState: (data: stateUpdaterFunctions|undefined) => void,
 }) => {
+    /**
+     * function handles adding new curve, with default point at top left corner
+     */
+    const handleAddCurve = () => {
+        onUpdateState(updateCurveFromAdd(curves));
+    }
+
     return (
         <div className="p-m">
-            {selectedPointData && 
-                <SelectedPointControls
+            {selectedPoint && (<>
+                <SelectedPointTraversalControls
+                    curves={curves}
+                    selectedPoint={selectedPoint}
+                    onUpdateState={onUpdateState}
+                />
+                <SelectedPointAddDeleteControls
                     points={points}
                     curves={curves}
-                    radiusDatas={radiusDatas}
-                    selectedPointData={selectedPointData!}
-                    onUpdatePoint={onUpdatePoint}
-                    onAddPoint={onAddPoint}
-                    onDeletePoint={onDeletePoint}
-                    onDeleteCurve={onDeleteCurve}
-                    onUpdateRadiusOnPoint={onUpdateRadiusOnPoint}
-                    onAddRadiusToPoint={onAddRadiusToPoint}
-                    onDeleteRadiusFromPoint={onDeleteRadiusFromPoint}
-                    onUpdateSelected={onUpdateSelected}
+                    selectedPoint={selectedPoint}
+                    onUpdateState={onUpdateState}
                 />
+                <SelectedPointPositionControls
+                    points={points}
+                    selectedPoint={selectedPoint}
+                    onUpdateState={onUpdateState}
+                />
+                <SelectedPointRadiusControls
+                    radiusDatas={radiusDatas}
+                    curves={curves}
+                    selectedPoint={selectedPoint}
+                    onUpdateState={onUpdateState}
+                />
+            </>)
             }
             <InputSet title="Add Curve">
                 <Button title="+ Add Curve"
-                    onClick={() => { onAddCurve(); }}
+                    onClick={handleAddCurve}
                 />
             </InputSet>
         </div>

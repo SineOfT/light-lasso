@@ -1,7 +1,10 @@
 import { generateId } from './util';
-import { EMPTY_POS, posAdd, posSub, posWithDistance, getInvPos, posLerp, posRound } from './pos';
+import { posAdd, posSub, posWithDistance, getInvPos, posLerp, posRound } from './pos';
+import { EMPTY_POINT, getPoint } from './point';
 
 import type { pos } from './pos';
+import type { point, selectedPoint } from './point';
+import type { pointData } from './pointData';
 
 /**
  * how much distance to put when adding a new point to either the very start or end of a curve
@@ -9,33 +12,7 @@ import type { pos } from './pos';
 const ADD_EXTREME_OVERSHOOT = 50;
 
 /** type represents curve that holds the IDs of all points in the curve, in order */
-export type curve = { controlPointId: string, anchorPointId: string }[];
-
-/** type represents description of selected point, indicating ID and if is inverse control point */
-export type selectedPointData = { id: string, isInverse: boolean };
-
-/**
- * function gets the point with the given ID
- * 
- * if the point ID is invalid, an empty point will be returned
- * 
- * @param points a record of all existing points
- * @param pointId the ID of the point
- * @returns the point at the given location, or an empty point if invalid
- */
-export const getPoint = (
-    points: Record<string, pos>,
-    pointId: string,
-): pos => {
-    // get point with point ID, if exists
-    const point = points[pointId];
-    if (point == undefined) {
-        console.warn('Tried to get non-existent point with ID %s', pointId);
-        return EMPTY_POS;
-    }
-
-    return point;
-}
+export type curve = string[];
 
 /**
  * function gets a point on the given curve at the given index
@@ -49,21 +26,17 @@ export const getPoint = (
  * @returns the point at the given location, or an empty point if invalid
  */
 export const getPointOnCurve = (
-    points: Record<string, pos>,
+    points: Map<string, point>,
     curve: curve,
     pointIndex: number,
-    isControl: boolean,
-): pos => {
+) => {
     // get point ID at index on curve, if exists
-    const curvePointIds = curve[pointIndex];
-    if (curvePointIds == undefined) {
+    const pointId = curve[pointIndex];
+    if (pointId === undefined) {
         console.warn('Tried to get out-of-bounds point at index %s on curve with length %d',
             pointIndex, curve.length);
-        return EMPTY_POS;
+        return EMPTY_POINT;
     }
-
-    // get either control point or anchor point based on parameter
-    const pointId = isControl ? curvePointIds.controlPointId : curvePointIds.anchorPointId;
 
     // get point with ID
     return getPoint(points, pointId);
@@ -76,26 +49,22 @@ export const getPointOnCurve = (
  * @returns the location of the point in curves, or undefined if non-existant
  */
 export const getPointLocation = (
-    curves: Record<string, curve>,
+    curves: Map<string, curve>,
     pointId: string,
 ) => {
     // find curve point is within
-    const curveObj = Object.entries(curves)
-        .map(([curveId, curve]) => ({
+    const curveObj = Array.from(curves,
+        ([curveId, curve]) => ({
             curveId,
             curve,
-            pointIndex: curve.findIndex(({ controlPointId, anchorPointId }) =>
-                pointId === controlPointId || pointId === anchorPointId)
+            pointIndex: curve.findIndex((curvePointId) => pointId === curvePointId),
         }))
         .find(({ pointIndex }) => pointIndex !== -1);
-    if (curveObj == undefined) { return; }
+    if (curveObj === undefined) { return; }
     const { curveId, curve, pointIndex } = curveObj;
 
-    // determine whether point is control point
-    const isControlPoint = curve[pointIndex]!.controlPointId === pointId;
-    
     // return relevant data
-    return { curveId, curve, pointIndex, isControlPoint };
+    return { curveId, curve, pointIndex };
 }
 
 /**
@@ -110,15 +79,15 @@ export const getPointLocation = (
  * @param isAfter whether the point is added before or after the given point
  * @returns functions that updates affected curve and points
  */
-export const getCurveFromAddPoint = (
-    points: Record<string, pos>,
-    curves: Record<string, curve>,
+export const updateCurveFromAddPoint = (
+    points: Map<string, point>,
+    curves: Map<string, curve>,
     pointId: string,
     isAfter: boolean,
 ) => {
     // get location of point
     const pointLocation = getPointLocation(curves, pointId);
-    if (pointLocation == undefined) { return };
+    if (pointLocation === undefined) { return };
     const { curveId, curve, pointIndex } = pointLocation; 
 
     // get section new point placed on
@@ -128,86 +97,92 @@ export const getCurveFromAddPoint = (
                       :                                  'within';
 
     // determine position of new control and anchor point based on neighboring points
-    const { controlPoint, anchorPoint } =
+    const newPoint: point =
         sectionType === 'within' ? (() => {
             // find IDs of neighboring points
-            const beforePoints = curve[sectionIndex]!;
-            const afterPoints  = curve[sectionIndex+1]!;
+            const beforePointId = curve[sectionIndex]!;
+            const afterPointId  = curve[sectionIndex+1]!;
 
             // find positions of relevant neighboring points
-            const beforeInvControlPoint = getPoint(points, beforePoints.controlPointId);
-            const beforeAnchorPoint     = getPoint(points, beforePoints.anchorPointId);
-            const afterControlPoint     = getPoint(points, afterPoints.controlPointId);
-            const afterAnchorPoint      = getPoint(points, afterPoints.anchorPointId);
-            const beforeControlPoint    = getInvPos(beforeInvControlPoint, beforeAnchorPoint);
+            const {
+                controlPos: beforeInvControlPos,
+                anchorPos: beforeAnchorPos,
+            } = getPoint(points, beforePointId);
+            const beforeControlPoint = getInvPos(beforeInvControlPos, beforeAnchorPos);
+            const {
+                controlPos: afterControlPos,
+                anchorPos: afterAnchorPos,
+            } = getPoint(points, afterPointId);
             
             // find positions of intermediary positions
-            const newBeforeControlPoint = posLerp(beforeAnchorPoint, beforeControlPoint, 2);
-            const newAfterControlPoint  = posLerp( afterAnchorPoint,  afterControlPoint, 2);
-            const lerpMidPoint = posLerp(newBeforeControlPoint, newAfterControlPoint, 0.5);
+            const newBeforeControlPos = posLerp(beforeAnchorPos,     beforeControlPoint, 2);
+            const newAfterControlPos  = posLerp(afterAnchorPos,      afterControlPos,    2);
+            const lerpMidPoint        = posLerp(newBeforeControlPos, newAfterControlPos, 0.5);
 
             // calculate new points
-            const controlPoint = posLerp(newBeforeControlPoint, lerpMidPoint, 0.5);
-            const anchorPoint = lerpMidPoint;
+            const newControlPos = posLerp(newBeforeControlPos, lerpMidPoint, 0.5);
+            const newAnchorPos = lerpMidPoint;
             return { // round positions to nearest integer
-                controlPoint: posRound(controlPoint),
-                anchorPoint:  posRound(anchorPoint),
+                controlPos: posRound(newControlPos),
+                anchorPos:  posRound(newAnchorPos),
             };
         })()
       : sectionType === 'before' ? (() => {
             // calculate new points based on first points on curve
-            const firstControlPoint = getPointOnCurve(points, curve, 0, true);
-            const firstAnchorPoint  = getPointOnCurve(points, curve, 0, false);
-            const anchorPoint = posAdd(
-                firstControlPoint,
-                posWithDistance(posSub(firstControlPoint, firstAnchorPoint), ADD_EXTREME_OVERSHOOT),
+            const {
+                controlPos: firstControlPos,
+                anchorPos:  firstAnchorPos,
+            } = getPointOnCurve(points, curve, 0);
+            const newAnchorPos = posAdd(
+                firstControlPos,
+                posWithDistance(posSub(firstControlPos, firstAnchorPos), ADD_EXTREME_OVERSHOOT),
             );
-            const controlPoint = getInvPos(firstControlPoint, anchorPoint); // inversed
+            const newControlPos = getInvPos(firstControlPos, newAnchorPos); // inversed
             return { // round positions to nearest integer
-                controlPoint: posRound(controlPoint),
-                anchorPoint:  posRound(anchorPoint),
+                controlPos: posRound(newControlPos),
+                anchorPos:  posRound(newAnchorPos),
             };
         })()
       : sectionType === 'after' ? (() => {
             // calculate new points based on last points on curve
-            const lastInvControlPoint = getPointOnCurve(points, curve, curve.length-1, true);
-            const lastAnchorPoint     = getPointOnCurve(points, curve, curve.length-1, false);
-            const lastControlPoint    = getInvPos(lastInvControlPoint, lastAnchorPoint);
-            const anchorPoint = posAdd(
-                lastControlPoint,
-                posWithDistance(posSub(lastControlPoint, lastAnchorPoint), ADD_EXTREME_OVERSHOOT),
+            const {
+                controlPos: lastInvControlPos,
+                anchorPos: lastAnchorPos,
+            } = getPointOnCurve(points, curve, curve.length-1);
+            const lastControlPos = getInvPos(lastInvControlPos, lastAnchorPos);
+            const newAnchorPoint = posAdd(
+                lastControlPos,
+                posWithDistance(posSub(lastControlPos, lastAnchorPos), ADD_EXTREME_OVERSHOOT),
             );
-            const controlPoint = lastControlPoint;
+            const newControlPoint = lastControlPos;
             return { // round positions to nearest integer
-                controlPoint: posRound(controlPoint),
-                anchorPoint:  posRound(anchorPoint),
+                controlPos: posRound(newControlPoint),
+                anchorPos:  posRound(newAnchorPoint),
             };
         })()
       : sectionType satisfies never;
 
-    // generate IDs for new points
+    // generate ID for new point
     const existingIds = Object.keys(points);
-    const controlPointId = generateId(existingIds);
-    const anchorPointId  = generateId([...existingIds, controlPointId]);
+    const newPointId = generateId(existingIds);
 
-    // determine new curve
-    const newCurve = curve.toSpliced(sectionIndex+1, 0, { controlPointId, anchorPointId }) as curve;
+    // determine new curve and selected point
+    const newCurve: curve = curve.toSpliced(sectionIndex+1, 0, newPointId);
+    const newSelectedPoint: selectedPoint = { id: newPointId, type: 'anchor' };
 
     // return functions that modifies points and curve
     return {
-        controlPoint,
-        anchorPoint,
-        updatePoints: (prevPoints: Record<string, pos>) => {
-            const newPoints = { ...prevPoints } as Record<string, pos>;
-            newPoints[controlPointId] = controlPoint;
-            newPoints[anchorPointId]  = anchorPoint;
+        updatePoints: (prevPoints: Map<string, point>) => {
+            const newPoints = new Map(prevPoints);
+            newPoints.set(newPointId, newPoint);
             return newPoints;
         },
-        updateCurves: (prevCurves: Record<string, curve>) => {
-            const newCurves = { ...prevCurves } as Record<string, curve>;
-            newCurves[curveId] = newCurve;
+        updateCurves: (prevCurves: Map<string, curve>) => {
+            const newCurves = new Map(prevCurves);
+            newCurves.set(curveId, newCurve);
             return newCurves;
-        }
+        },
+        newSelectedPoint,
     };
 }
 
@@ -217,66 +192,107 @@ export const getCurveFromAddPoint = (
  * @param pointId ID of the point to delete
  * @returns functions that update affected curve and points
  */
-export const getCurveFromDeletePoint = (
-    curves: Record<string, curve>,
+export const updateCurveFromDeletePoint = (
+    curves: Map<string, curve>,
     pointId: string,
 ) => {
     // get location of point
     const pointLocation = getPointLocation(curves, pointId);
-    if (pointLocation == undefined) { return; }
+    if (pointLocation === undefined) { return; }
     const { curveId, curve, pointIndex } = pointLocation;
 
     // determine new curve
-    const newCurve = curve.toSpliced(pointIndex, 1);
+    const newCurve: curve = curve.toSpliced(pointIndex, 1);
 
     // return functions that updates curve and points
     return {
-        updatePoints: (prevPoints: Record<string, pos>) => {
-            const newPoints = { ...prevPoints } as Record<string, pos>;
-            delete newPoints[pointId];
+        updatePoints: (prevPoints: Map<string, point>) => {
+            const newPoints = new Map(prevPoints);
+            newPoints.delete(pointId);
             return newPoints;
         },
-        updateCurves: (prevCurves: Record<string, curve>) => {
-            const newCurves = { ...prevCurves } as Record<string, curve>;
-            newCurves[curveId] = newCurve;
+        updateCurves: (prevCurves: Map<string, curve>) => {
+            const newCurves = new Map(prevCurves);
+            newCurves.set(curveId, newCurve);
             return newCurves;
-        }
-    }
+        },
+        newSelectedPoint: null,
+    };
 }
 
 /**
- * function adds new curve, with point positioned at center of canvas
+ * function adds new curve, with point positioned at top left of canvas
  * @param curves a record of all existing curves
- * @param resolution dimensions of the canvas
  * @returns functions that update affected curve and points
  */
-export const getCurveFromAdd = (curves: Record<string, curve>, resolution: pos) => {
-    // create points to add on new curve
-    const anchorPoint = { x: resolution.x / 2, y: resolution.y / 2 } as pos;
-    const controlPoint = { x: anchorPoint.x - ADD_EXTREME_OVERSHOOT, y: anchorPoint.y } as pos;
+export const updateCurveFromAdd = (
+    curves: Map<string, curve>,
+) => {
+    // find positions of point to add on new curve
+    const newAnchorPos: pos = { x: 0, y: 0 };
+    const newControlPos: pos = { x: -ADD_EXTREME_OVERSHOOT, y: 0 };
 
     // generate ID for curve and point
     const existingIds = Object.keys(curves);
-    const curveId = generateId(existingIds);
-    const controlPointId = generateId([...existingIds, curveId]);
-    const anchorPointId = generateId([...existingIds, curveId, controlPointId]);
+    const newCurveId = generateId(existingIds);
+    const newPointId = generateId([...existingIds, newCurveId]);
 
-    // determine new curve
-    const newCurve = [{ controlPointId, anchorPointId }] as curve;
+    // determine new curve, point, and selected point
+    const newCurve: curve = [newPointId];
+    const newPoint: point = { controlPos: newControlPos, anchorPos: newAnchorPos };
+    const newSelectedPoint: selectedPoint = { id: newPointId, type: 'anchor' };
 
     // return function that adds curve and point
     return {
-        curveId,
-        updatePoints: (prevPoints: Record<string, pos>) => {
-            const newPoints = { ...prevPoints } as Record<string, pos>;
-            newPoints[controlPointId] = controlPoint;
-            newPoints[anchorPointId]  = anchorPoint;
+        updatePoints: (prevPoints: Map<string, point>) => {
+            const newPoints = new Map(prevPoints);
+            newPoints.set(newPointId, newPoint);
             return newPoints;
         },
-        updateCurves: (prevCurves: Record<string, curve>) => {
-            const newCurves = { ...prevCurves } as Record<string, curve>;
-            newCurves[curveId] = newCurve;
+        updateCurves: (prevCurves: Map<string, curve>) => {
+            const newCurves = new Map(prevCurves);
+            newCurves.set(newCurveId, newCurve);
             return newCurves;
         },
+        newSelectedPoint,
     };
+}
+
+/**
+ * function handles deleting given curve
+ * @param curves a record of all existing curves
+ * @param curveId ID of curve to delete
+ * @returns functions that updates curve, points, and point datas
+ */
+export const updateCurveFromDelete = (
+    curves: Map<string, curve>,
+    curveId: string,
+) => {
+    // find IDs of all points in curve
+    const curve = curves.get(curveId);
+    if (curve === undefined) { return; }
+
+    // return functions that update state
+    return {
+        updatePoints: (prevPoints: Map<string, point>) => {
+            const newPoints = new Map(prevPoints);
+            for (const pointId of curve) {
+                newPoints.delete(pointId);
+            }
+            return newPoints;
+        },
+        updatePointDatas: (prevRadiusDatas: Map<string, pointData>) => {
+            const newRadiusDatas = new Map(prevRadiusDatas);
+            for (const pointId of curve) {
+                newRadiusDatas.delete(pointId);
+            }
+            return newRadiusDatas;
+        },
+        updateCurves: (prevCurves: Map<string, curve>) => {
+            const newCurves = new Map(prevCurves);
+            newCurves.delete(curveId);
+            return newCurves;
+        },
+        newSelectedPoint: null,
+    }
 }

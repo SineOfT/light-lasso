@@ -1,23 +1,19 @@
-import type { pos } from "./pos";
-import { getPointLocation, type curve } from "./curve";
+import { getPointLocation } from "./curve";
 
-/**
- * type represents key used to identify data associated with point(s)
- * 
- * it must be guranteed that this type is consistent with the positionType value in pointData
- */
-export type pointDataKey = string|{ before: string, after: string };
+import type { pos } from "./pos";
+import type { point } from "./point";
+import type { curve } from "./curve";
 
 /** type represents changes in data associated with points as progress along curve */
 export type pointData = {
     /** the value of the data at this point */
     value: number,
-    /** whether this data is associated at a single point or between 2 points */
-    positionType: 'atPoint'|'betweenPoints',
-    /** if between 2 points, the position at which it is placed between */
-    t: number,
     /** the position of the control point used to defined transitions between neighboring data */
     controlPos: pos,
+    /** any other points place before this data point and after previous data point */
+    beforePointsData: point[],
+    /** any other points place after this data point and before next data point */
+    afterPointsData: point[],
 };
 
 /**
@@ -27,24 +23,26 @@ export type pointData = {
  * @param value new value of data at point
  * @returns function that updates point datas
  */
-export const getDataFromUpdate = (
-    pointDatas: Map<pointDataKey, pointData>,
+export const updateDataFromUpdate = (
+    pointDatas: Map<string, pointData>,
     pointId: string,
-    value: number,
+    newValue: number,
 ) => {
     // get data at given point, skipping if doesn't exist
     const pointData = pointDatas.get(pointId);
-    if (pointData == undefined) { return; }
+    if (pointData === undefined) { return; }
     
     // determine new data
     const newPointData = { ...pointData };
-    newPointData.value = value;
+    newPointData.value = newValue;
 
     // return function that updates point datas
-    return (prevPointDatas: Map<pointDataKey, pointData>) => {
-        const newPointDatas = new Map(prevPointDatas);
-        newPointDatas.set(pointId, newPointData);
-        return newPointDatas;
+    return {
+        updatePointDatas: (prevPointDatas: Map<string, pointData>) => {
+            const newPointDatas = new Map(prevPointDatas);
+            newPointDatas.set(pointId, newPointData);
+            return newPointDatas;
+        },
     }
 }
 
@@ -54,8 +52,8 @@ export const getDataFromUpdate = (
  * @param pointId ID of point data added to
  * @returns function that updates point datas
  */
-export const getDataFromAddToPoint = (
-    pointDatas: Map<pointDataKey, pointData>,
+export const updateDataFromAddToPoint = (
+    pointDatas: Map<string, pointData>,
     pointId: string,
 ) => {
     // if point already has associated data, skip
@@ -64,18 +62,19 @@ export const getDataFromAddToPoint = (
     // determine new data associated to point
     const newPointData: pointData = {
         value: 0,
-        positionType: 'atPoint',
-        t: 0, // placeholder, not used
         controlPos: { x: 0.25, y: 0 } as pos,
+        beforePointsData: [], // no points placed before or after
+        afterPointsData: [],  //
     };
-    const newPointDataKey: pointDataKey = pointId;
 
     // return function that updates adds new data
-    return (prevPointDatas: Map<pointDataKey, pointData>) => {
-        const newPointDatas = new Map(prevPointDatas);
-        newPointDatas.set(newPointDataKey, newPointData);
-        return newPointDatas;
-    }
+    return {
+        updatePointDatas: (prevPointDatas: Map<string, pointData>) => {
+            const newPointDatas = new Map(prevPointDatas);
+            newPointDatas.set(pointId, newPointData);
+            return newPointDatas;
+        },
+    };
 }
 
 /**
@@ -85,64 +84,73 @@ export const getDataFromAddToPoint = (
  * @param pointId ID of point data deleted from
  * @returns function that updates point datas
  */
-export const getDataFromDeleteFromPoint = (
-    curves: Record<string, curve>,
-    pointDatas: Map<pointDataKey, pointData>,
+export const updateDataFromDeleteFromPoint = (
+    curves: Map<string, curve>,
+    pointDatas: Map<string, pointData>,
     pointId: string,
 ) => {
     // get location curve point is on
     const pointLocation = getPointLocation(curves, pointId);
-    if (pointLocation == undefined) { return; }
+    if (pointLocation === undefined) { return; }
     const { curve, pointIndex } = pointLocation;
 
-    // want to delete data associated with deleted point
-    const dataAtPointKey: pointDataKey = pointId;
+    // will always delete data at given point, and may modify data at neighboring points
 
-    // want to either delete or update data positioned between deleted point, if exists
-    const dataBeforePointKey: pointDataKey|undefined = pointIndex > 0
-        ? { before: curve[pointIndex-1]!.anchorPointId, after: pointId }
-        : undefined;
-    const dataAfterPointKey: pointDataKey|undefined = pointIndex < curve.length-1
-        ? { before: pointId, after: curve[pointIndex+1]!.anchorPointId }
-        : undefined;
-    
-    // determine whether above neighboring data points should be deleted or updated
-    const hasBetweenData = pointIndex > 0 && pointIndex < curve.length-1;
-
-    // if data after point exists, update values
-    const newDataBeforePoint: [pointDataKey, pointData]|undefined
-        = dataBeforePointKey != undefined && hasBetweenData
-        ? (() => {
-            const data = pointDatas.get(dataBeforePointKey);
-            if (data == undefined) { return; } // if data non existant, do not add new data
-            const newData: pointData = { ...data };
-            newData.t = newData.t / 2;
-            newData.controlPos.x = newData.controlPos.x / 2;
-            const newKey = { before: dataBeforePointKey.before, after: curve[pointIndex+1]!.anchorPointId };
-            return [newKey, newData];
-        })()
-        : undefined;
-    const newDataAfterPoint: [pointDataKey, pointData]|undefined
-        = dataAfterPointKey != undefined && hasBetweenData
-        ? (() => {
-            const data = pointDatas.get(dataAfterPointKey);
-            if (data == undefined) { return; } // if data non existant, do not add new data
-            const newData: pointData = { ...data };
-            newData.t = 0.5 + newData.t / 2;
-            newData.controlPos.x = 0.5 + newData.controlPos.x / 2;
-            const newKey = { before: curve[pointIndex-1]!.anchorPointId, after: dataAfterPointKey.after };
-            return [newKey, newData];
-        })()
-        : undefined;
+    // get ID and new data for points before, or undefined if no change
+    const newDataBeforePoint: [string, pointData]|undefined = (() => {
+        // find ID of point before, skipping if out of bounds
+        if (pointIndex <= 0) { return; }
+        const beforePointId = curve[pointIndex-1]!;
+        // get data at point before, skipping if doens't exist
+        const data = pointDatas.get(beforePointId);
+        if (data === undefined) { return; }
+        if (data.afterPointsData.length === 0) { return; }
+        // create copy of data to modify
+        const newData: pointData = { ...data };
+        // if after delete is now last point on curve, no points after so delete
+        if (pointIndex === curve.length-1) {
+            newData.afterPointsData = [];
+        // otherwise, update timings of each data point after
+        } else {
+            newData.afterPointsData.forEach((data) => {
+                data.controlPos.x = data.controlPos.x / 2;
+                data.anchorPos.x  = data.anchorPos.x  / 2;
+            });
+        }
+        return [beforePointId, newData];
+        })();
+    // get ID and new data for points after, or undefined if no change
+    const newDataAfterPoint: [string, pointData]|undefined = (() => {
+        // find ID of point before, skipping if out of bounds
+        if (pointIndex >= curve.length-1) { return; }
+        const afterPointId = curve[pointIndex+1]!;
+        // get data at point after, skipping if doens't exist
+        const data = pointDatas.get(afterPointId);
+        if (data === undefined) { return; }
+        if (data.beforePointsData.length === 0) { return; }
+        // create copy of data to modify
+        const newData: pointData = { ...data };
+        // if after delete is now first point on curve, no points before so delete
+        if (pointIndex === 0) {
+            newData.beforePointsData = [];
+        // otherwise, update timings of each data point before
+        } else {
+            newData.beforePointsData.forEach((data) => {
+                data.controlPos.x = data.controlPos.x / 2 + 0.5;
+                data.anchorPos.x  = data.anchorPos.x  / 2 + 0.5;
+            });
+        }
+        return [afterPointId, newData];
+    })();
 
     // return function that updates data of associated points
-    return (prevPointDatas: Map<pointDataKey, pointData>) => {
-        const newPointDatas = new Map(prevPointDatas);
-        newPointDatas.delete(dataAtPointKey);
-        if (dataBeforePointKey != undefined) { newPointDatas.delete(dataBeforePointKey); }
-        if (dataAfterPointKey  != undefined) { newPointDatas.delete(dataAfterPointKey);  }
-        if (newDataBeforePoint != undefined) { newPointDatas.set(...newDataBeforePoint); }
-        if (newDataAfterPoint  != undefined) { newPointDatas.set(...newDataAfterPoint);  }
-        return newPointDatas;
-    }
+    return {
+        updatePointDatas: (prevPointDatas: Map<string, pointData>) => {
+            const newPointDatas = new Map(prevPointDatas);
+            newPointDatas.delete(pointId);
+            if (newDataBeforePoint !== undefined) { newPointDatas.set(...newDataBeforePoint); }
+            if (newDataAfterPoint  !== undefined) { newPointDatas.set(...newDataAfterPoint);  }
+            return newPointDatas;
+        },
+    };
 }

@@ -30,7 +30,7 @@ const Sidebar = ({
         // get DOM elements from DOM refs
         const sidebarContainer = sidebarContainerRef.current;
         const barHandle = barHandleRef.current;
-        if (sidebarContainer == null || barHandle == null) { return; }
+        if (sidebarContainer === null || barHandle === null) { return; }
 
         // store the offset at which a drag action is started
         let dragOffset: number|null = null;
@@ -61,7 +61,7 @@ const Sidebar = ({
          */
         const handleDrag = (e: MouseEvent) => {
             // if not dragging, skip
-            if (dragOffset == null) { return; }
+            if (dragOffset === null) { return; }
             // get direction based on whether on smaller side or larger side
             const direction = isInverse ? -1 : 1;
             // set size of sidebar based on how far mouse position moved from initial

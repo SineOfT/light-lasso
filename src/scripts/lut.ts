@@ -2,8 +2,10 @@ import { posAdd, posMul, posAddAll, getInvPos } from './pos';
 import { getPointOnCurve, getPointLocation } from './curve';
 
 import type { pos } from './pos';
+import type { point } from './point';
 import type { curve } from './curve';
 
+/** how much t value incremented in each section on curve when generating LUT */
 const LUT_STEP = 0.1;
 
 /**
@@ -13,18 +15,19 @@ const LUT_STEP = 0.1;
 export type lut = pos[][];
 
 /**
- * function generates a look-up table for a cubic bezier using the start point, end point,
- * second control point, and inverse of the first control point (inv 1st -> start -> 1st)
+ * function generates a look-up table for a cubic bezier using the
+ * start position, end position, second control position, and
+ * inverse of the first control position (inv 1st -> start -> 1st)
  * @returns an array containing the positions at each step of the bezier curve
  */
 export const generateBezierLut = (
-    invControlPoint1: pos, point1: pos, controlPoint2: pos, point2: pos
-) => {    
+    invControlPos1: pos, anchorPos1: pos, controlPos2: pos, anchorPos2: pos
+) => {
     // create LUT to be populated
     let lut = [];
 
-    // determine position of first control point by inverting in relation to first point
-    const controlPos1 = getInvPos(invControlPoint1, point1);
+    // determine first control position by inverting in relation to first anchor position
+    const controlPos1 = getInvPos(invControlPos1, anchorPos1);
 
     /* 
      * precompute coefficients used in cubic bezier polynomial
@@ -34,14 +37,13 @@ export const generateBezierLut = (
      *    [  3 -6  3  0 ]
      *    [ -1  3 -3  1 ]
      */
-    const a0 =                  point1;
-    const a1 = posAddAll(posMul(point1, -3), posMul(controlPos1,  3));
-    const a2 = posAddAll(posMul(point1,  3), posMul(controlPos1, -6), posMul(controlPoint2,  3));
-    const a3 = posAddAll(posMul(point1, -1), posMul(controlPos1,  3), posMul(controlPoint2, -3), point2);
+    const a0 =                  anchorPos1;
+    const a1 = posAddAll(posMul(anchorPos1, -3), posMul(controlPos1,  3));
+    const a2 = posAddAll(posMul(anchorPos1,  3), posMul(controlPos1, -6), posMul(controlPos2,  3));
+    const a3 = posAddAll(posMul(anchorPos1, -1), posMul(controlPos1,  3), posMul(controlPos2, -3), anchorPos2);
     
     // in the range 0-1, increment through different steps of t and determine position on cubic bezier
     for (let t = 0; t <= 1; t += LUT_STEP) {
-        
         // solve polynomial using coefficients and powers of t, add to LUT
         const pos = posAdd(posMul(posAdd(posMul(posAdd(posMul(a3, t), a2), t), a1), t), a0);
         lut.push(pos);
@@ -56,58 +58,72 @@ export const generateBezierLut = (
  * @param points a record of all existing points
  * @param curves a record of all existing curves
  * @param pointId the ID of the updated point
- * @param newPoint the new position of the updated point
+ * @param isControl whether the updated position is the control position or not
+ * @param newPos the new updated position
  * @returns function that updates affected LUT
  */
 export const getLutFromUpdatePoint = (
-    points: Record<string, pos>,
-    curves: Record<string, curve>,
-    luts: Record<string, lut>,
+    points: Map<string, point>,
+    curves: Map<string, curve>,
+    luts: Map<string, lut>,
     pointId: string,
-    newPoint: pos,
+    isControl: boolean,
+    newPos: pos,
 ) => {
     // get location of point in curves
     const pointLocation = getPointLocation(curves, pointId);
-    if (pointLocation == undefined) { return; }
-    const { curveId, curve, pointIndex, isControlPoint } = pointLocation;
+    if (pointLocation === undefined) { return; }
+    const { curveId, curve, pointIndex } = pointLocation;
 
     // get affected LUT
-    const curveLut = luts[curveId];
-    if (curveLut == undefined) { return; }
+    const curveLut = luts.get(curveId);
+    if (curveLut === undefined) { return; }
+
+    // find neighboring positions
+    const beforePoint = pointIndex > 0
+        ? getPointOnCurve(points, curve, pointIndex-1)
+        : undefined;
+    const afterPoint = pointIndex < curve.length-1
+        ? getPointOnCurve(points, curve, pointIndex+1)
+        : undefined;
+
+    // find updated point, updating new positino
+    const currPoint = getPointOnCurve(points, curve, pointIndex);
+    const newCurrPoint: [pos, pos] = isControl
+        ? [newPos, currPoint.anchorPos]
+        : [currPoint.controlPos, newPos];
 
     // generate LUTs for each section, if exists
-    const beforeSection = pointIndex-1 >= 0
+    const beforeSection = beforePoint !== undefined
         ? {
             index: pointIndex-1,
             lut: generateBezierLut(
-                getPointOnCurve(points, curve, pointIndex-1, true),
-                getPointOnCurve(points, curve, pointIndex-1, false),
-                isControlPoint ? newPoint : getPointOnCurve(points, curve, pointIndex, true),
-                isControlPoint ? getPointOnCurve(points, curve, pointIndex, false) : newPoint,
+                beforePoint.controlPos,
+                beforePoint.anchorPos,
+                ...newCurrPoint,
             ),
         }
         : undefined;
-    const afterSection = pointIndex < curve.length-1 // one less section than points on curve
+    const afterSection = afterPoint !== undefined
         ? {
             index: pointIndex,
             lut: generateBezierLut(
-                isControlPoint ? newPoint : getPointOnCurve(points, curve, pointIndex, true),
-                isControlPoint ? getPointOnCurve(points, curve, pointIndex, false) : newPoint,
-                getPointOnCurve(points, curve, pointIndex+1, true),
-                getPointOnCurve(points, curve, pointIndex+1, false),
+                ...newCurrPoint,
+                afterPoint.controlPos,
+                afterPoint.anchorPos,
             ),
         }
         : undefined;
 
     // determine new LUT
-    const newLut = [...curveLut] as lut;
-    if (beforeSection != undefined) { newLut[beforeSection.index] = beforeSection.lut; }
-    if (afterSection  != undefined) { newLut[afterSection.index]  = afterSection.lut;  }
+    const newLut: lut = [...curveLut];
+    if (beforeSection !== undefined) { newLut[beforeSection.index] = beforeSection.lut; }
+    if (afterSection  !== undefined) { newLut[afterSection.index]  = afterSection.lut;  }
 
     // return function that updates LUT
-    return (prevLuts: Record<string, lut>) => {
-        const newLuts = { ...prevLuts } as Record<string, lut>;
-        newLuts[curveId] = newLut;
+    return (prevLuts: Map<string, lut>) => {
+        const newLuts = new Map(prevLuts);
+        newLuts.set(curveId, newLut);
         return newLuts;
     };
 }
@@ -124,22 +140,21 @@ export const getLutFromUpdatePoint = (
  * @returns function that updates affected LUT
  */
 export const getLutFromAddPoint = (
-    points: Record<string, pos>,
-    curves: Record<string, curve>,
-    luts: Record<string, lut>,
+    points: Map<string, point>,
+    curves: Map<string, curve>,
+    luts: Map<string, lut>,
     pointId: string,
     isAfter: boolean,
-    controlPoint: pos,
-    anchorPoint: pos,
+    newPoint: point,
 ) => {
     // find location of point
     const pointLocation = getPointLocation(curves, pointId);
-    if (pointLocation == undefined) { return; }
+    if (pointLocation === undefined) { return; }
     const { curveId, curve, pointIndex } = pointLocation;
     
     // get affected LUT
-    const curveLut = luts[curveId];
-    if (curveLut == undefined) { return; }
+    const curveLut = luts.get(curveId);
+    if (curveLut === undefined) { return; }
 
     // find which section point added to
     const sectionIndex = pointIndex + (isAfter ? 0 : -1);
@@ -147,26 +162,34 @@ export const getLutFromAddPoint = (
                       : sectionIndex >= curve.length-1 ? 'after' // one less section than points on curve
                       :                                  'within';
 
+    // find neighboring points
+    const beforePoint = sectionType === 'before'
+        ? undefined
+        : getPointOnCurve(points, curve, sectionIndex);
+    const afterPoint = sectionType === 'after'
+        ? undefined
+        : getPointOnCurve(points, curve, sectionIndex+1);
+
     // generate LUTs for each section, if exists
     const beforeSectionLut = sectionType === 'before'
         ? undefined
         : generateBezierLut(
-            getPointOnCurve(points, curve, sectionIndex, true),
-            getPointOnCurve(points, curve, sectionIndex, false),
-            controlPoint,
-            anchorPoint,
+            beforePoint!.controlPos,
+            beforePoint!.anchorPos,
+            newPoint.controlPos,
+            newPoint.anchorPos,
         );
     const afterSectionLut = sectionType === 'after'
         ? undefined
         : generateBezierLut(
-            controlPoint,
-            anchorPoint,
-            getPointOnCurve(points, curve, sectionIndex+1, true),
-            getPointOnCurve(points, curve, sectionIndex+1, false),
+            newPoint.controlPos,
+            newPoint.anchorPos,
+            afterPoint!.controlPos,
+            afterPoint!.anchorPos,
         );
 
     // determine new LUT
-    const newLut = [...curveLut] as lut;
+    const newLut: lut = [...curveLut];
     if (sectionType === 'before') {
         newLut.unshift(afterSectionLut!);
     } else if (sectionType === 'after') {
@@ -178,9 +201,9 @@ export const getLutFromAddPoint = (
     }
 
     // return function that updates LUT
-    return (prevLuts: Record<string, lut>) => {
-        const newLuts = { ...prevLuts } as Record<string, lut>;
-        newLuts[curveId] = newLut;
+    return (prevLuts: Map<string, lut>) => {
+        const newLuts = new Map(prevLuts);
+        newLuts.set(curveId, newLut);
         return newLuts;
     }
 }
@@ -194,19 +217,19 @@ export const getLutFromAddPoint = (
  * @returns function that updates affected LUT
  */
 export const getLutFromDeletePoint = (
-    points: Record<string, pos>,
-    curves: Record<string, curve>,
-    luts: Record<string, lut>,
+    points: Map<string, point>,
+    curves: Map<string, curve>,
+    luts: Map<string, lut>,
     pointId: string,
 ) => {
     // get location of point
     const pointLocation = getPointLocation(curves, pointId);
-    if (pointLocation == undefined) { return; }
+    if (pointLocation === undefined) { return; }
     const { curveId, curve, pointIndex } = pointLocation;
   
     // get affected LUT
-    const curveLut = luts[curveId];
-    if (curveLut == undefined) { return; }
+    const curveLut = luts.get(curveId);
+    if (curveLut === undefined) { return; }
 
     // determine type of section point was in
     const sectionIndex = pointIndex - 1;
@@ -215,17 +238,19 @@ export const getLutFromDeletePoint = (
                       :                                  'within';
 
     // determine new LUT for affected curve
-    const newLut = [...curveLut] as lut;
+    const newLut: lut = [...curveLut];
     if (sectionType === 'before') {
         newLut.shift();
     } else if (sectionType === 'after') {
         newLut.pop();
     } else if (sectionType === 'within') {
+        const beforePoint = getPointOnCurve(points, curve, sectionIndex);
+        const afterPoint  = getPointOnCurve(points, curve, sectionIndex+2); // since +1 is deleted point
         const newSectionLut = generateBezierLut(
-            getPointOnCurve(points, curve, sectionIndex, true),
-            getPointOnCurve(points, curve, sectionIndex, false),
-            getPointOnCurve(points, curve, sectionIndex+2, true),  // since +1 is deleted point
-            getPointOnCurve(points, curve, sectionIndex+2, false), //
+            beforePoint.controlPos,
+            beforePoint.anchorPos,
+            afterPoint.controlPos,
+            afterPoint.anchorPos,
         );
         newLut.splice(sectionIndex, 2, newSectionLut);
     } else {
@@ -233,9 +258,9 @@ export const getLutFromDeletePoint = (
     }
 
     // return function that updates LUT
-    return (prevLuts: Record<string, lut>) => {
-        const newLuts = { ...prevLuts } as Record<string, lut>
-        newLuts[curveId] = newLut;
+    return (prevLuts: Map<string, lut>) => {
+        const newLuts = new Map(prevLuts);
+        newLuts.set(curveId, newLut);
         return newLuts;
     };
 }
