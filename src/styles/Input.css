@@ -1,7 +1,7 @@
 
 label {
-    display: block;
-    font-size: 0.8em;
+    display: inline-block;
+    font-size: 0.8rem;
 }
 
 input {
@@ -14,12 +14,15 @@ input[type="number"] {
 }
 
 legend {
+    width: 100%;
+    padding: 0;
     font-size: 1.2em;
 }
 
 fieldset.input-set {
     border: none;
     width: 100%;
+    padding-top: 0;
     display: flex;
     flex-direction: row;
     gap: 0.5rem;
@@ -29,28 +32,9 @@ fieldset.input-set > * {
     flex-grow: 1;
 }
 
-fieldset.slider-number-input {
-    border: none;
-    width: 100%;
-    display: flex;
-    flex-direction: row;
-    gap: 0.5rem;
-}
-
-fieldset.pos-input {
-    border: none;
-    width: 100%;
-    display: flex;
-    flex-direction: row;
-    gap: 1rem;
-}
-fieldset.pos-input > div.number-input {
-    flex-grow: 1;
-}
-
 div.slider-input {
     flex-basis: 4rem;
-    flex-grow: 1;
+    flex-grow: 99999;
     flex-shrink: 1;
 }
 
@@ -80,4 +64,65 @@ div.input-inline > label::after {
 .button-input[disabled] {
     color: black;
     background-color: var(--color-controls);
+}
+
+/* copied from Bootstrap - switch styling */
+.form-switch {
+    display: block;
+    min-height: 1.5rem;
+    padding-left: 2.5em;
+    padding-right: 1.5em;
+    margin-bottom: 0.125rem;
+    text-align: right;
+}
+.form-check-input {
+    float: right;
+    margin-left: 0.5em;
+    margin-right: -2em;
+    margin-top: 0.25em;
+    flex-shrink: 0;
+    width: 2em;
+    height: 1em;
+    vertical-align: top;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    border: 1px solid var(--color-controls);
+    border-radius: 2em;
+    --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%280, 0, 0, 0.25%29'/%3e%3c/svg%3e");
+    background-image: var(--bs-form-switch-bg);
+    background-color: #FFF;
+    background-position: left center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    transition: background-position 0.15s ease-in-out;
+}
+.form-check-input:active {
+    filter: brightness(90%);
+}
+.form-check-input:focus {
+    --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%2386b7fe'/%3e%3c/svg%3e");
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+.form-check-input:checked {
+    --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e");
+    border-color: #0d6efd;
+    background-color: #0d6efd;
+    background-position: right center;
+}
+.form-check-input:disabled {
+    pointer-events: none;
+    filter: none;
+    opacity: 0.5;
+}
+.form-check-input[disabled] ~ .form-check-label,
+.form-check-input:disabled  ~ .form-check-label {
+    cursor: default;
+    opacity: 0.5;
+}
+@media (prefers-reduced-motion: reduce) {
+    .form-check-input {
+        transition: none;
+    }
 }

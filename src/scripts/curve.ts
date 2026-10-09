@@ -250,7 +250,7 @@ export const getCurveFromDeletePoint = (
  * @param resolution dimensions of the canvas
  * @returns functions that update affected curve and points
  */
-export const addCurve = (curves: Record<string, curve>, resolution: pos) => {
+export const getCurveFromAdd = (curves: Record<string, curve>, resolution: pos) => {
     // create points to add on new curve
     const anchorPoint = { x: resolution.x / 2, y: resolution.y / 2 } as pos;
     const controlPoint = { x: anchorPoint.x - ADD_EXTREME_OVERSHOOT, y: anchorPoint.y } as pos;

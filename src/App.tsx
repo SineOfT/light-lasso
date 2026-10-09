@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { addCurve, getCurveFromAddPoint, getCurveFromDeletePoint } from './scripts/curves';
+import { getCurveFromAdd, getCurveFromAddPoint, getCurveFromDeletePoint } from './scripts/curve';
+import { getDataFromAddToPoint, getDataFromDeleteFromPoint, getDataFromUpdate } from './scripts/pointData';
 import { generateBezierLut, getLutFromUpdatePoint, getLutFromAddPoint, getLutFromDeletePoint } from './scripts/lut';
 import Main from './layout/Main';
 import Sidebar from './layout/Sidebar';
@@ -7,7 +8,8 @@ import LocalControls from './layout/LocalControls';
 import './styles/App.css'
 
 import type { pos } from './scripts/pos';
-import type { curve, selectedPointData } from './scripts/curves';
+import type { curve, selectedPointData } from './scripts/curve';
+import type { pointDataKey, pointData } from './scripts/pointData';
 import type { lut } from './scripts/lut';
 
 const App = () => {
@@ -19,6 +21,8 @@ const App = () => {
     const [curves, setCurves] = useState<Record<string, curve>>({ });
     // a record of all existing LUTs
     const [luts, setLuts] = useState<Record<string, lut>>({ });
+    // a record of all radius points on each curve
+    const [radiusDatas, setRadiusDatas] = useState<Map<pointDataKey, pointData>>(new Map());
     // the point that is currently selected
     const [selectedPointData, setSelectedPointData] = useState<selectedPointData|null>(null);
 
@@ -129,7 +133,7 @@ const App = () => {
      */
     const handleAddCurve = () => {
         // calculate new curve from add
-        const { curveId, updatePoints, updateCurves } = addCurve(curves, resolution);
+        const { curveId, updatePoints, updateCurves } = getCurveFromAdd(curves, resolution);
 
         // update based on updater functions
         setPoints(updatePoints);
@@ -170,7 +174,47 @@ const App = () => {
             return newLuts;
         });
     }
-    
+
+    /**
+     * function handles updating radius to given point
+     * @param pointId ID of point radius updated for
+     * @param radius new radius for data on given point
+     */
+    const handleUpdateRadiusOnPoint = (pointId: string, radius: number) => {
+        // calculate new radius datas from update
+        const updateRadiusDatas = getDataFromUpdate(radiusDatas, pointId, radius);
+        if (updateRadiusDatas == undefined) { return; }
+
+        // update based on updater functions
+        setRadiusDatas(updateRadiusDatas);
+    }
+
+    /**
+     * function handles adding new radius to existing point
+     * @param pointId ID of point radius added to
+     */
+    const handleAddRadiusToPoint = (pointId: string) => {
+        // calculate new radius datas from add
+        const updateRadiusDatas = getDataFromAddToPoint(radiusDatas, pointId);
+        if (updateRadiusDatas == undefined) { return; }
+
+        // update based on updater functions
+        setRadiusDatas(updateRadiusDatas);
+    }
+
+    /**
+     * function handles deleting radius from given point
+     * @param curveId ID of point radius deleted from
+     */
+    const handleDeleteRadiusFromPoint = (pointId: string) => {
+        // calculate new radius datas from delete
+        const updateRadiusDatas = getDataFromDeleteFromPoint(curves, radiusDatas, pointId);
+        if (updateRadiusDatas == undefined) { return; }
+
+        // update based on updater functions
+        setRadiusDatas(updateRadiusDatas);
+    }
+
     /**
      * function handles updating the currently selected point
      * 
@@ -196,12 +240,16 @@ const App = () => {
             <LocalControls
                 points={points}
                 curves={curves}
+                radiusDatas={radiusDatas}
                 selectedPointData={selectedPointData}
                 onUpdatePoint={handleUpdatePoint}
                 onAddPoint={handleAddPoint}
                 onDeletePoint={handleDeletePoint}
                 onAddCurve={handleAddCurve}
                 onDeleteCurve={handleDeleteCurve}
+                onUpdateRadiusOnPoint={handleUpdateRadiusOnPoint}
+                onAddRadiusToPoint={handleAddRadiusToPoint}
+                onDeleteRadiusFromPoint={handleDeleteRadiusFromPoint}
                 onUpdateSelected={handleUpdateSelected}
             />
         </Sidebar>

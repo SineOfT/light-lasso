@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { SELECTABLE_RADIUS } from '../scripts/constants';
 import { getInvPos, posAdd, posSub, posWithin } from '../scripts/pos';
-import { getPoint, getPointLocation } from '../scripts/curves';
+import { getPoint, getPointLocation } from '../scripts/curve';
 
 import type { MouseEvent } from 'react';
 import type { pos } from '../scripts/pos';
-import type { curve, selectedPointData } from '../scripts/curves';
+import type { curve, selectedPointData } from '../scripts/curve';
 import type { lut } from '../scripts/lut';
 
 /**

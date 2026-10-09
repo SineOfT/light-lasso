@@ -7,3 +7,12 @@
 .p-s { padding: 0.5rem; }
 .p-m { padding: 1rem; }
 .p-l { padding: 2rem; }
+
+.flex-row {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}

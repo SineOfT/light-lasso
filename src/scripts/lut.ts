@@ -1,8 +1,8 @@
 import { posAdd, posMul, posAddAll, getInvPos } from './pos';
-import { getPointOnCurve, getPointLocation } from './curves';
+import { getPointOnCurve, getPointLocation } from './curve';
 
 import type { pos } from './pos';
-import type { curve } from './curves';
+import type { curve } from './curve';
 
 const LUT_STEP = 0.1;
 

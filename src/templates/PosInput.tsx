@@ -4,13 +4,10 @@ import type { pos } from '../scripts/pos';
 
 /** component defines input that updates positions */
 export const PosInput = ({
-    title,
     id,
     pos,
     onUpdatePos,
 }: {
-    /** title label placed above input */
-    title: string,
     /** ID to uniquely identify input */
     id: string,
     /** current position of input */
@@ -36,23 +33,20 @@ export const PosInput = ({
     const xInputId = `${id}-x-input`;
     const yInputId = `${id}-y-input`;
 
-    return (
-        <fieldset className="pos-input">
-            <legend>{title}</legend>
-            <div className="number-input input-inline">
-                <label htmlFor={xInputId}>X</label>
-                <input type="number" id={xInputId} value={pos.x}
-                    onChange={handleChangeX}
-                />
-            </div>
-            <div className="number-input input-inline">
-                <label htmlFor={yInputId}>Y</label>
-                <input type="number" id={yInputId} value={pos.y}
-                    onChange={handleChangeY}
-                />
-            </div>
-        </fieldset>
-    );
+    return (<>
+        <div className="number-input input-inline">
+            <label htmlFor={xInputId}>X</label>
+            <input type="number" id={xInputId} value={pos.x}
+                onChange={handleChangeX}
+            />
+        </div>
+        <div className="number-input input-inline">
+            <label htmlFor={yInputId}>Y</label>
+            <input type="number" id={yInputId} value={pos.y}
+                onChange={handleChangeY}
+            />
+        </div>
+    </>);
 }
 
 export default PosInput;

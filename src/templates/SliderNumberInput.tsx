@@ -10,13 +10,10 @@ const getInvSliderValue = (x: number) => Math.round(Math.pow(10, x * 0.03) - 1);
  * component defines numerical input that can be assigned through slider or number input
  */
 const SliderNumberInput = ({
-    title,
     id,
     value,
     onUpdateValue,
 }: {
-    /** title label placed above inputs */
-    title: string,
     /** ID to uniquely identify inputs */
     id: string,
     /** current value of input */
@@ -53,23 +50,20 @@ const SliderNumberInput = ({
     // calculate value of slider from value of input
     const sliderValue = getSliderValue(value);
 
-    return (
-        <fieldset className="slider-number-input">
-            <legend>{title}</legend>
-            <div className="slider-input">
-                <label htmlFor={sliderId}>Slider</label>
-                <input type="range" id={sliderId} min="0" max="100" value={sliderValue}
-                    onChange={handleChangeSlider}
-                />
-            </div>
-            <div className="number-input">
-                <label htmlFor={numberId}>Number</label>
-                <input type="number" id={numberId} value={value}
-                    onChange={handleChangeNumber}
-                />
-            </div>
-        </fieldset>
-    );
+    return (<>
+        <div className="slider-input">
+            <label htmlFor={sliderId}>Slider</label>
+            <input type="range" id={sliderId} min="0" max="100" value={sliderValue}
+                onChange={handleChangeSlider}
+            />
+        </div>
+        <div className="number-input">
+            <label htmlFor={numberId}>Number</label>
+            <input type="number" id={numberId} value={value}
+                onChange={handleChangeNumber}
+            />
+        </div>
+    </>);
 }
 
 export default SliderNumberInput;
