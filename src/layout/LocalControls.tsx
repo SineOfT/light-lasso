@@ -6,35 +6,35 @@ import SelectedPointAddDeleteControls from './SelectedPointAddDeleteControls';
 import SelectedPointPositionControls from './SelectedPointPositionControls';
 import SelectedPointRadiusControls from './SelectedPointRadiusControls';
 
-import type { point, selectedPoint } from '../scripts/point';
+import type { pointUpdaterFunctions, selectedPoint } from '../scripts/point';
+import type { posPoint } from '../scripts/posPoint';
 import type { curve } from '../scripts/curve';
-import type { pointData } from '../scripts/pointData';
-import type { stateUpdaterFunctions } from '../App';
+import type { dataPoint } from '../scripts/dataPoint';
 
 /** component defines controls to adjust local points and curves */
 const LocalControls = ({
-    points,
-    radiusDatas,
+    posPoints,
+    radiusPoints,
     curves,
     selectedPoint,
     onUpdateState,
 }: {
     /** a record of all existing points */
-    points: Map<string, point>,
+    posPoints: Map<string, posPoint>,
     /** a record of all existing radius curves */
-    radiusDatas: Map<string, pointData>,
+    radiusPoints: Map<string, dataPoint>,
     /** a record of all existing curves */
     curves: Map<string, curve>,
     /** the currently selected point, or null if none selected */
     selectedPoint: selectedPoint|null,
     /** function updates states based on updater function */
-    onUpdateState: (data: stateUpdaterFunctions|undefined) => void,
+    onUpdateState: (data: pointUpdaterFunctions|undefined) => void,
 }) => {
     /**
      * function handles adding new curve, with default point at top left corner
      */
     const handleAddCurve = () => {
-        onUpdateState(updateCurveFromAdd(curves));
+        onUpdateState(updateCurveFromAdd());
     }
 
     return (
@@ -46,18 +46,18 @@ const LocalControls = ({
                     onUpdateState={onUpdateState}
                 />
                 <SelectedPointAddDeleteControls
-                    points={points}
+                    posPoints={posPoints}
                     curves={curves}
                     selectedPoint={selectedPoint}
                     onUpdateState={onUpdateState}
                 />
                 <SelectedPointPositionControls
-                    points={points}
+                    posPoints={posPoints}
                     selectedPoint={selectedPoint}
                     onUpdateState={onUpdateState}
                 />
                 <SelectedPointRadiusControls
-                    radiusDatas={radiusDatas}
+                    radiusPoints={radiusPoints}
                     curves={curves}
                     selectedPoint={selectedPoint}
                     onUpdateState={onUpdateState}

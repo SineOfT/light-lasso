@@ -36,13 +36,13 @@ export const PosInput = ({
     return (<>
         <div className="number-input input-inline">
             <label htmlFor={xInputId}>X</label>
-            <input type="number" id={xInputId} value={pos.x}
+            <input type="number" id={xInputId} value={parseFloat(pos.x.toFixed(2))}
                 onChange={handleChangeX}
             />
         </div>
         <div className="number-input input-inline">
             <label htmlFor={yInputId}>Y</label>
-            <input type="number" id={yInputId} value={pos.y}
+            <input type="number" id={yInputId} value={parseFloat(pos.y.toFixed(2))}
                 onChange={handleChangeY}
             />
         </div>

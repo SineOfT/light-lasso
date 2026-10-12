@@ -1,14 +1,14 @@
+import { RADIUS_POINT_TYPE } from '../scripts/dataPoint';
 import TogglableInputSet from '../templates/TogglableInputSet';
 import SliderNumberInput from '../templates/SliderNumberInput';
 
-import type { selectedPoint } from '../scripts/point';
-import type { curve } from '../scripts/curve';
-import { updateDataFromAddToPoint, updateDataFromDeleteFromPoint, updateDataFromUpdate, type pointData } from '../scripts/pointData';
-import type { stateUpdaterFunctions } from '../App';
+import { updatePointFromUpdate, type pointUpdaterFunctions, type selectedPoint } from '../scripts/point';
+import { updateCurveFromAddToExisting, updateCurveFromDeletePoint, type curve } from '../scripts/curve';
+import type { dataPoint } from '../scripts/dataPoint';
 
 /** component defines controls to change radius of selected point */
 const SelectedPointRadiusControls = ({
-    radiusDatas,
+    radiusPoints,
     curves,
     selectedPoint,
     onUpdateState,
@@ -16,14 +16,14 @@ const SelectedPointRadiusControls = ({
     /** a record of all existing curves */
     curves: Map<string, curve>,
     /** a record of all existing radius curves */
-    radiusDatas: Map<string, pointData>,
+    radiusPoints: Map<string, dataPoint>,
     /** the currently selected point */
     selectedPoint: selectedPoint,
     /** function updates states based on updater function */
-    onUpdateState: (data: stateUpdaterFunctions|undefined) => void,
+    onUpdateState: (data: pointUpdaterFunctions|undefined) => void,
 }) => {
     // find radius of selected point, if any
-    const radiusData = radiusDatas.get(selectedPoint.id);
+    const radiusPoint = radiusPoints.get(selectedPoint.id);
 
     /** 
      * function handles updating whether there is a radius associated with the selected point
@@ -31,9 +31,11 @@ const SelectedPointRadiusControls = ({
      */
     const handleToggleRadius = (isToggled: boolean) => {
         if (isToggled) {
-            onUpdateState(updateDataFromAddToPoint(radiusDatas, selectedPoint.id));
+            onUpdateState(updateCurveFromAddToExisting(RADIUS_POINT_TYPE,
+                radiusPoints, curves, selectedPoint.id));
         } else {
-            onUpdateState(updateDataFromDeleteFromPoint(curves, radiusDatas, selectedPoint.id));
+            onUpdateState(updateCurveFromDeletePoint(RADIUS_POINT_TYPE,
+                selectedPoint.id));
         }
     }
 
@@ -42,15 +44,17 @@ const SelectedPointRadiusControls = ({
      * @param newRadius new radius at selected point
      */
     const handleUpdateRadius = (newRadius: number) => {
-        onUpdateState(updateDataFromUpdate(radiusDatas, selectedPoint.id, newRadius));
+        const changedPoint: Partial<dataPoint> = { value: newRadius };
+        onUpdateState(updatePointFromUpdate(RADIUS_POINT_TYPE,
+            radiusPoints, selectedPoint.id, changedPoint));
     }
 
     return (
-        <TogglableInputSet title="Radius" id="radius" isToggled={radiusData !== undefined}
+        <TogglableInputSet title="Radius" id="radius" isToggled={radiusPoint !== undefined}
             onUpdateToggled={handleToggleRadius}
         >
-            {radiusData !== undefined && (
-                <SliderNumberInput id="radius" value={radiusData.value}
+            {radiusPoint !== undefined && (
+                <SliderNumberInput id="radius" value={radiusPoint.value}
                     onUpdateValue={handleUpdateRadius}
                 />
             )}

@@ -1,31 +1,35 @@
-import { getInvPos } from '../scripts/pos';
-import { getPoint, updatePointsFromUpdate } from '../scripts/point';
+import { posSub, posMul, posDiv, posLength } from '../scripts/pos';
+import { POS_POINT_TYPE } from '../scripts/posPoint';
+import { getAfterControlPos, getBeforeControlPos } from '../scripts/controlPos';
+import { updatePointFromUpdate } from '../scripts/point';
 import InputSet from '../templates/InputSet';
 import PosInput from '../templates/PosInput';
 
 import type { pos } from '../scripts/pos';
-import type { point, selectedPoint } from '../scripts/point';
-import type { stateUpdaterFunctions } from '../App';
+import type { pointUpdaterFunctions, selectedPoint } from '../scripts/point';
+import type { posPoint } from '../scripts/posPoint';
 
 /** component defines controls to change position of selected point */
 const SelectedPointPositionControls = ({
-    points,
+    posPoints,
     selectedPoint,
     onUpdateState,
 }: {
     /** a record of all existing points */
-    points: Map<string, point>,
+    posPoints: Map<string, posPoint>,
     /** the currently selected point */
     selectedPoint: selectedPoint,
     /** function updates states based on updater function */
-    onUpdateState: (data: stateUpdaterFunctions|undefined) => void,
+    onUpdateState: (data: pointUpdaterFunctions|undefined) => void,
 }) => {
-    // find position of selected point
-    const { controlPos, anchorPos } = getPoint(points, selectedPoint.id);
+    // find position of selected point, returning empty if none
+    const posPoint = posPoints.get(selectedPoint.id);
+    if (posPoint === undefined) { return <></>; }
+    const { controlPos, anchorPos } = posPoint;
     const selectedPos =
-        selectedPoint.type === 'control'    ? controlPos
-      : selectedPoint.type === 'invControl' ? getInvPos(controlPos, anchorPos)
-      : selectedPoint.type === 'anchor'     ? anchorPos
+        selectedPoint.type === 'anchor'        ? anchorPos
+      : selectedPoint.type === 'beforeControl' ? getBeforeControlPos(anchorPos, controlPos)
+      : selectedPoint.type === 'afterControl'  ? getAfterControlPos(anchorPos, controlPos)
       : selectedPoint.type satisfies never;
 
     /**
@@ -34,20 +38,43 @@ const SelectedPointPositionControls = ({
      */
     const handleUpdateSelectedPos = (changedPos: Partial<pos>) => {
         // determine new pos by applying changing to current selected point
-        const newRawPos = { ...selectedPos, ...changedPos } as pos;
-
-        // if inverse control point, invert position
-        const newPos = selectedPoint.type === 'invControl'
-            ? getInvPos(newRawPos, anchorPos)
-            : newRawPos;
+        const newPos: pos = { ...selectedPos, ...changedPos };
 
         // determine new point
-        const newPoint = selectedPoint.type === 'anchor'
-            ? { anchorPos: newPos }
-            : { controlPos: newPos };
+        const newPoint: Partial<posPoint> = (() => {
+            // if anchor position updated, apply new position to anchor
+            if (selectedPoint.type === 'anchor') {
+                return { anchorPos: newPos }
+            }
 
-        // update state
-        onUpdateState(updatePointsFromUpdate(points, selectedPoint.id, newPoint));
+            // calculate new control position relative to anchor
+            const newControlPos = posSub(newPos, anchorPos);
+            const length = posLength(newControlPos);
+            const direction = posDiv(newControlPos, length);
+
+            // if before control position updated, apply new position to before control
+            if (selectedPoint.type === 'beforeControl') {
+                return { controlPos: {
+                    direction: posMul(direction, -1), // invert direction
+                    beforeLength: length,
+                    afterLength: controlPos.afterLength,
+                } };
+            }
+
+            // if after control position updated, apply new position to after control
+            if (selectedPoint.type === 'afterControl') {
+                return { controlPos: {
+                    direction,
+                    beforeLength: controlPos.beforeLength,
+                    afterLength: length,
+                } };
+            }
+
+            return selectedPoint.type satisfies never;
+        })();
+
+        // update point based on new position
+        onUpdateState(updatePointFromUpdate(POS_POINT_TYPE, posPoints, selectedPoint.id, newPoint));
     }
 
     return (

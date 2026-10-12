@@ -1,11 +1,10 @@
 import { updateSelectedPoint } from '../scripts/point';
-import { getPointLocation } from '../scripts/curve';
+import { getEntireCurveLocation } from '../scripts/curve';
 import InputSet from '../templates/InputSet';
 import Button from '../templates/Button';
 
-import type { selectedPoint } from '../scripts/point';
+import type { pointUpdaterFunctions, selectedPoint } from '../scripts/point';
 import type { curve } from '../scripts/curve';
-import type { stateUpdaterFunctions } from '../App';
 
 /** component defines controls to move selection between points */
 const SelectedPointTraversalControls = ({
@@ -18,7 +17,7 @@ const SelectedPointTraversalControls = ({
     /** the currently selected point */
     selectedPoint: selectedPoint,
     /** function updates states based on updater function */
-    onUpdateState: (data: stateUpdaterFunctions|undefined) => void,
+    onUpdateState: (data: pointUpdaterFunctions|undefined) => void,
 }) => {
     /**
      * function handles updating point currently selected
@@ -29,16 +28,16 @@ const SelectedPointTraversalControls = ({
     }
 
     // find location of selected point in curves, showing nothing if non-existant
-    const pointLocation = getPointLocation(curves, selectedPoint.id);
+    const pointLocation = getEntireCurveLocation(curves, selectedPoint.id);
     if (pointLocation === undefined) { return <></>; }
-    const { curve, pointIndex } = pointLocation;
+    const { curve, index } = pointLocation;
 
     // find neighboring points
-    const beforeSelectedPoint: selectedPoint|undefined = pointIndex-1 >= 0
-        ? { id: curve[pointIndex-1]!, type: 'anchor' }
+    const beforeSelectedPoint: selectedPoint|undefined = index-1 >= 0
+        ? { id: curve[index-1]!.id, type: 'anchor' }
         : undefined;
-    const afterSelectedPoint: selectedPoint|undefined = pointIndex+1 < curve.length
-        ? { id: curve[pointIndex+1]!,  type: 'anchor' }
+    const afterSelectedPoint: selectedPoint|undefined = index+1 < curve.length
+        ? { id: curve[index+1]!.id,  type: 'anchor' }
         : undefined;
 
     return (
