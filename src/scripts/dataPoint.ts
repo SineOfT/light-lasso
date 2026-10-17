@@ -12,6 +12,7 @@ export type DataPoint = {
     controlPos: ControlPos,
 };
 
+/** type represents type of point that is specifically some sort of data point */
 export type DataPointType = PointType<DataPoint> & {
     /** what value of data will map to a 1 when mapped to a t value range; is able to go higher */
     upperValue: number,
@@ -49,5 +50,6 @@ export const calculateNewDataPoint: NewPointCalculator<DataPoint> = (beforePoint
 export const RADIUS_POINT_TYPE: DataPointType= {
     updaterFunctionKey: 'updateRadiusPoints',
     calculateNewPoint: calculateNewDataPoint,
+    calculateNewDeletedPointT: () => undefined, // since not positioned, no affect to t value
     upperValue: 1000,
 }

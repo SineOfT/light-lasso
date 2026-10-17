@@ -38,7 +38,7 @@ const SelectedPointRadiusControls = ({
                 radiusPoints, curves, selectedPoint.id));
         } else {
             onUpdateState(updateCurveFromDeletePoint(RADIUS_POINT_TYPE,
-                selectedPoint.id));
+                radiusPoints, curves, selectedPoint.id));
         }
     }
 

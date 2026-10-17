@@ -38,6 +38,15 @@ export type NewPointCalculator<T extends Point> = (
 }
 
 /**
+ * type represents function that calculates new t value on curve point when given point deleted
+ */
+export type NewDeletedPointTCalculator<T extends Point> = (
+    deletedPoint: CurvePoint<T>,
+    beforePoint: CurvePoint<T>|undefined,
+    afterPoint: CurvePoint<T>|undefined,
+) => number|undefined;
+
+/**
  * type represents point
  * @template T type of data stored in point
  */
@@ -46,6 +55,8 @@ export interface PointType<T extends Point> {
     updaterFunctionKey: keyof PointUpdaterFunctions,
     /** function calculates position of new point added between up to 2 existing points */
     calculateNewPoint: NewPointCalculator<T>,
+    /** function calculates new t value on curve point when point deleted */
+    calculateNewDeletedPointT: NewDeletedPointTCalculator<T>,
 }
 
 /** type defines 3 different types of positions stored in point */

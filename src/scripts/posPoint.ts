@@ -1,9 +1,9 @@
-import { EMPTY_POS, posAdd, posRound, posMul } from './pos';
+import { EMPTY_POS, posAdd, posRound, posMul, posInvLerp } from './pos';
 import { calculateNewPointBetween } from './point';
 import { EMPTY_CONTROL_POS } from './controlPos';
 
 import type { pos } from './pos';
-import type { NewPointCalculator, PointType, } from './point';
+import type { NewDeletedPointTCalculator, NewPointCalculator, PointType, } from './point';
 import type { ControlPos } from './controlPos';
 
 /** interface defines point, which has control position & anchor position */
@@ -102,8 +102,34 @@ const calculateNewPosPoint: NewPointCalculator<PosPoint> = (beforePoint, afterPo
     };
 }
 
+/**
+ * function calculates new t value of point on curve when given point deleted
+ * @param deletedPoint point that will be deleted
+ * @param beforePoint point right before deleted point, or undefined if none
+ * @param afterPoint point right after deleted point, or undefined if none
+ * @returns new t value to set on point on curve where point deleted
+ */
+const calculateNewDeletedPosPointT: NewDeletedPointTCalculator<PosPoint> = (
+    deletedPoint, beforePoint, afterPoint
+) => {
+    // if deleted point not between 2 existing points, use default t value of halfway
+    if (beforePoint === undefined || afterPoint === undefined) {
+        return 0.5;
+    }
+
+    // find how far along deleted point is compared to total distance between points
+    // note that this is only an approximation, since it uses linear interpolation instead of a curve
+    const newT = posInvLerp(
+        beforePoint.point.anchorPos,
+        afterPoint.point.anchorPos,
+        deletedPoint.point.anchorPos);
+    
+    return newT;
+}
+
 /** type of point that holds positions of points of curve */
 export const POS_POINT_TYPE: PointType<PosPoint> = {
     updaterFunctionKey: 'updatePosPoints',
     calculateNewPoint: calculateNewPosPoint,
+    calculateNewDeletedPointT: calculateNewDeletedPosPointT,
 }

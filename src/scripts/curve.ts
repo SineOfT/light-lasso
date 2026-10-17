@@ -266,7 +266,7 @@ export const updateCurveFromAddToExisting = <T extends Point>(
     points: Map<string, T>,
     curves: Map<string, Curve>,
     pointId: string,
-) => {
+): PointUpdaterFunctions|undefined => {
     // find location of point, skipping if point doesn't exist or already set
     const pointLocation = getCurvePointLocation(points, curves, pointId);
     if (pointLocation === undefined) { return; }
@@ -331,13 +331,35 @@ export const updateCurveFromAddToExisting = <T extends Point>(
  * function generates changes that need to be made to point when point deleted
  * @template T the type of data to delete a new point of
  * @param pointType the type of the point to change
+ * @param points a record of all existing points of given type
+ * @param curves a record of all existing curves
  * @param pointId ID of the point to delete
  * @returns functions that update affected points
  */
 export const updateCurveFromDeletePoint = <T extends Point>(
     pointType: PointType<T>,
+    points: Map<string, T>,
+    curves: Map<string, Curve>,
     pointId: string,
-) => {
+): PointUpdaterFunctions|undefined => {
+    // find location of point
+    const pointLocation = getCurvePointLocation(points, curves, pointId);
+    if (pointLocation === undefined) { return; }
+    const { curveId, curve, index, curvePoints, curvePointIndex } = pointLocation;
+
+    // find deleted point and neighboring points
+    const deletedCurvePoint = curvePoints[curvePointIndex]!;
+    const beforeCurvePoint  = curvePoints[curvePointIndex-1];
+    const afterCurvePoint   = curvePoints[curvePointIndex+1];
+
+    // calculate new t value
+    const newT = pointType.calculateNewDeletedPointT(deletedCurvePoint, beforeCurvePoint, afterCurvePoint);
+
+    // calculate new curve
+    const newCurve = newT !== undefined
+        ? curve.toSpliced(index, 1, { ...curve[index]!, t: newT })
+        : undefined;
+
     // return functions that updates points
     return {
         [pointType.updaterFunctionKey]: (prevPoints: Map<string, T>) => {
@@ -345,5 +367,12 @@ export const updateCurveFromDeletePoint = <T extends Point>(
             newPoints.delete(pointId);
             return newPoints;
         },
+        ...(newCurve !== undefined ? {
+            updateCurves: (prevCurves: Map<string, Curve>) => {
+                const newCurves = new Map(prevCurves);
+                newCurves.set(curveId, newCurve);
+                return newCurves;
+            }
+        } : { })
     };
 }

@@ -43,7 +43,8 @@ const SelectedPointAddDeleteControls = ({
      * function handles deleting the currently selected point
      */
     const handleDeletePoint = () => {
-        onUpdateState(updateCurveFromDeletePoint(POS_POINT_TYPE, selectedPoint.id));
+        onUpdateState(updateCurveFromDeletePoint(POS_POINT_TYPE,
+            posPoints, curves, selectedPoint.id));
     }
 
     /**
