@@ -3,8 +3,8 @@ import { getEntireCurveLocation } from '../scripts/curve';
 import InputSet from '../templates/InputSet';
 import Button from '../templates/Button';
 
-import type { pointUpdaterFunctions, selectedPoint } from '../scripts/point';
-import type { curve } from '../scripts/curve';
+import type { PointUpdaterFunctions, SelectedPoint } from '../scripts/point';
+import type { Curve } from '../scripts/curve';
 
 /** component defines controls to move selection between points */
 const SelectedPointTraversalControls = ({
@@ -13,17 +13,17 @@ const SelectedPointTraversalControls = ({
     onUpdateState,
 }: {
     /** a record of all existing curves */
-    curves: Map<string, curve>,
+    curves: Map<string, Curve>,
     /** the currently selected point */
-    selectedPoint: selectedPoint,
+    selectedPoint: SelectedPoint,
     /** function updates states based on updater function */
-    onUpdateState: (data: pointUpdaterFunctions|undefined) => void,
+    onUpdateState: (data: PointUpdaterFunctions|undefined) => void,
 }) => {
     /**
      * function handles updating point currently selected
      * @param newSelectedPoint point to newly select, or null if deselecting
      */
-    const handleUpdateSelected = (newSelectedPoint: selectedPoint|null) => {
+    const handleUpdateSelected = (newSelectedPoint: SelectedPoint|null) => {
         onUpdateState(updateSelectedPoint(newSelectedPoint));
     }
 
@@ -33,10 +33,10 @@ const SelectedPointTraversalControls = ({
     const { curve, index } = pointLocation;
 
     // find neighboring points
-    const beforeSelectedPoint: selectedPoint|undefined = index-1 >= 0
+    const beforeSelectedPoint: SelectedPoint|undefined = index-1 >= 0
         ? { id: curve[index-1]!.id, type: 'anchor' }
         : undefined;
-    const afterSelectedPoint: selectedPoint|undefined = index+1 < curve.length
+    const afterSelectedPoint: SelectedPoint|undefined = index+1 < curve.length
         ? { id: curve[index+1]!.id,  type: 'anchor' }
         : undefined;
 

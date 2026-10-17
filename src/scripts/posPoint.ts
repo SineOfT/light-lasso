@@ -3,13 +3,13 @@ import { calculateNewPointBetween } from './point';
 import { EMPTY_CONTROL_POS } from './controlPos';
 
 import type { pos } from './pos';
-import type { newPointCalculator, pointType, } from './point';
-import type { controlPos } from './controlPos';
+import type { NewPointCalculator, PointType, } from './point';
+import type { ControlPos } from './controlPos';
 
 /** interface defines point, which has control position & anchor position */
-export interface posPoint {
+export interface PosPoint {
     anchorPos: pos,
-    controlPos: controlPos,
+    controlPos: ControlPos,
 }
 
 /** how much distance to put when adding a new point to either the very start or end of a curve */
@@ -21,7 +21,7 @@ export const DEFAULT_CONTROL_POS_LENGTH = 50;
  * @param afterPoint point right after new point to add, or undefined if none
  * @returns new point, along with t value between 2 points
  */
-const calculateNewPosPoint: newPointCalculator<posPoint> = (beforePoint, afterPoint) => {
+const calculateNewPosPoint: NewPointCalculator<PosPoint> = (beforePoint, afterPoint) => {
     // if between 2 existing points, add halfway between
     if (beforePoint !== undefined && afterPoint !== undefined) {
         const { newPoint, newBeforeControlPosLength, newAfterControlPosLength }
@@ -50,7 +50,7 @@ const calculateNewPosPoint: newPointCalculator<posPoint> = (beforePoint, afterPo
             beforeLength: DEFAULT_CONTROL_POS_LENGTH,
             afterLength: DEFAULT_CONTROL_POS_LENGTH,
         };
-        const newPoint: posPoint = {
+        const newPoint: PosPoint = {
             anchorPos:  posRound(newAnchorPos), // round positions to nearest integer
             controlPos: newControlPos,
         };
@@ -90,7 +90,7 @@ const calculateNewPosPoint: newPointCalculator<posPoint> = (beforePoint, afterPo
     }
 
     // if no point before and after, new point is only point so set to default
-    const newPoint: posPoint = {
+    const newPoint: PosPoint = {
         anchorPos:  EMPTY_POS,
         controlPos: EMPTY_CONTROL_POS,
     };
@@ -103,7 +103,7 @@ const calculateNewPosPoint: newPointCalculator<posPoint> = (beforePoint, afterPo
 }
 
 /** type of point that holds positions of points of curve */
-export const POS_POINT_TYPE: pointType<posPoint> = {
+export const POS_POINT_TYPE: PointType<PosPoint> = {
     updaterFunctionKey: 'updatePosPoints',
     calculateNewPoint: calculateNewPosPoint,
 }

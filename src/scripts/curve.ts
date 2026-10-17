@@ -2,11 +2,11 @@ import { generateId } from './util';
 import { EMPTY_POS } from './pos';
 import { EMPTY_CONTROL_POS } from './controlPos';
 
-import type { point, selectedPoint, pointUpdaterFunctions, pointType } from './point';
-import type { posPoint } from './posPoint';
+import type { Point, PartialPoint, SelectedPoint, PointUpdaterFunctions, PointType } from './point';
+import type { PosPoint } from './posPoint';
 
 /** type represents curve that holds the IDs of all points in the curve, in order */
-export type curve = {
+export type Curve = {
     /** ID of point at position on curve */
     id: string,
     /** if null, has associated position; otherwise, interpolation between nearest positioned neighbors */
@@ -14,7 +14,7 @@ export type curve = {
 }[];
 
 /** type represents point on curve, holding point value and t interpolation position */
-export interface curvePoint<T extends point> {
+export interface CurvePoint<T extends Point> {
     /** ID of point */
     id: string,
     /** value of point */
@@ -31,7 +31,7 @@ export interface curvePoint<T extends point> {
  * @returns the location of the point in the entire curve curves, or undefined if non-existant
  */
 export const getEntireCurveLocation = (
-    curves: Map<string, curve>,
+    curves: Map<string, Curve>,
     pointId: string,
 ) => {
     // find which curve point is within
@@ -55,9 +55,9 @@ export const getEntireCurveLocation = (
  * @param pointId the ID of the point to locate
  * @returns the location of the point in curves, or undefined if non-existant
  */
-export const getCurvePointLocation = <T extends point>(
+export const getCurvePointLocation = <T extends Point>(
     points: Map<string, T>,
-    curves: Map<string, curve>,
+    curves: Map<string, Curve>,
     pointId: string,
 ) => {
     // find location of point on entire curve
@@ -88,18 +88,18 @@ export const updateCurveFromAdd = () => {
     const newPointId = generateId();
 
     // determine new curve, default point, and selected point
-    const newCurve: curve = [{ id: newPointId, t: null }]; // position, so not interpolated
-    const newPoint: posPoint = { anchorPos: EMPTY_POS, controlPos: EMPTY_CONTROL_POS };
-    const newSelectedPoint: selectedPoint = { id: newPointId, type: 'anchor' };
+    const newCurve: Curve = [{ id: newPointId, t: null }]; // position, so not interpolated
+    const newPoint: PosPoint = { anchorPos: EMPTY_POS, controlPos: EMPTY_CONTROL_POS };
+    const newSelectedPoint: SelectedPoint = { id: newPointId, type: 'anchor' };
 
     // return function that adds curve and point
     return {
-        updatePoints: (prevPoints: Map<string, posPoint>) => {
+        updatePoints: (prevPoints: Map<string, PosPoint>) => {
             const newPoints = new Map(prevPoints);
             newPoints.set(newPointId, newPoint);
             return newPoints;
         },
-        updateCurves: (prevCurves: Map<string, curve>) => {
+        updateCurves: (prevCurves: Map<string, Curve>) => {
             const newCurves = new Map(prevCurves);
             newCurves.set(newCurveId, newCurve);
             return newCurves;
@@ -118,13 +118,66 @@ export const updateCurveFromDelete = (
 ) => {
     // return functions that update state
     return {
-        updateCurves: (prevCurves: Map<string, curve>) => {
+        updateCurves: (prevCurves: Map<string, Curve>) => {
             const newCurves = new Map(prevCurves);
             newCurves.delete(curveId);
             return newCurves;
         },
         newSelectedPoint: null,
     }
+}
+
+/**
+ * function generates changes that need to be made to curve when point updated
+ * @template T the type of data to update a new point of
+ * @param pointType the type of the point to change
+ * @param points a record of all existing points of the given type
+ * @param curves a record of all existing curves
+ * @param pointId ID of the point to update
+ * @param changedPoint the values of the point that have changed from the update
+ * @param newT the new t value at the point on the curve, if set and not already positioned
+ * @returns functions that update affected points
+ */
+export const updateCurveFromUpdatePoint = <T extends Point>(
+    pointType: PointType<T>,
+    points: Map<string, T>,
+    curves: Map<string, Curve>,
+    pointId: string,
+    changedPoint: PartialPoint<T>,
+    newT?: number,
+): PointUpdaterFunctions|undefined => {
+    // find location of point
+    const pointLocation = getCurvePointLocation(points, curves, pointId);
+    if (pointLocation === undefined) { return; }
+    const { curveId, index } = pointLocation;
+
+    // find current value of point 
+    const point = points.get(pointId);
+    if (point === undefined) { return; }
+
+    // find new value of point by applying changes
+    const newPoint: T = { ...point, ...changedPoint };
+    if (changedPoint.controlPos !== undefined) {
+        newPoint.controlPos = { ...point.controlPos, ...changedPoint.controlPos };
+    }
+
+    // return functions that updates points
+    return {
+        [pointType.updaterFunctionKey]: (prevPoints: Map<string, T>) => {
+            const newPoints = new Map(prevPoints);
+            newPoints.set(pointId, newPoint);
+            return newPoints;
+        },
+        updateCurves: (prevCurves: Map<string, Curve>) => {
+            if (newT === undefined) { return prevCurves; }
+            const newCurves = new Map(prevCurves);
+            const newCurvePoint = newCurves.get(curveId)?.[index];
+            if (newCurvePoint === undefined) { return prevCurves; }
+            if (newCurvePoint.t === null) { return prevCurves; } // do not update if already positioned
+            newCurvePoint.t = newT;
+            return newCurves;
+        }
+    };
 }
 
 /**
@@ -135,18 +188,18 @@ export const updateCurveFromDelete = (
  * @template T the type of data to add a new point of
  * @param pointType the type of the point to change
  * @param points a record of all existing points of given type
- * @param curve the curve to add the point to
+ * @param curves a record of all existing curves
  * @param pointId the ID of the point next to the new point
  * @param isAfter whether the point is added before or after the given point
  * @returns functions that updates affected curve and points
  */
-export const updateCurveFromAddPoint = <T extends point>(
-    pointType: pointType<T>,
+export const updateCurveFromAddPoint = <T extends Point>(
+    pointType: PointType<T>,
     points: Map<string, T>,
-    curves: Map<string, curve>,
+    curves: Map<string, Curve>,
     pointId: string,
     isAfter: boolean,
-): pointUpdaterFunctions|undefined => {
+): PointUpdaterFunctions|undefined => {
     // get location of point
     const pointLocation = getCurvePointLocation(points, curves, pointId);
     if (pointLocation === undefined) { return };
@@ -172,7 +225,7 @@ export const updateCurveFromAddPoint = <T extends point>(
     const { newPoint, t, newBeforeControlPosLength, newAfterControlPosLength }
         = pointType.calculateNewPoint(beforeCurvePoint, afterCurvePoint);
     const newCurve = curve.toSpliced(newIndex, 0, { id: newPointId, t });
-    const newSelectedPoint: selectedPoint = { id: newPointId, type: 'anchor' };
+    const newSelectedPoint: SelectedPoint = { id: newPointId, type: 'anchor' };
 
     // return functions that modifies points and curve
     return {
@@ -187,7 +240,7 @@ export const updateCurveFromAddPoint = <T extends point>(
             }
             return newPoints;
         },
-        updateCurves: (prevCurves: Map<string, curve>) => {
+        updateCurves: (prevCurves: Map<string, Curve>) => {
             const newCurves = new Map(prevCurves);
             newCurves.set(curveId, newCurve);
             return newCurves;
@@ -204,14 +257,14 @@ export const updateCurveFromAddPoint = <T extends point>(
  * @template T the type of data to add a new point of
  * @param pointType the type of the point to change
  * @param points a record of all existing points of given type
- * @param curve the curve to add the point to
+ * @param curves a record of all existing curves
  * @param pointId the ID of the existing point to add the new point into 
  * @returns functions that updates affected curve and points
  */
-export const updateCurveFromAddToExisting = <T extends point>(
-    pointType: pointType<T>,
+export const updateCurveFromAddToExisting = <T extends Point>(
+    pointType: PointType<T>,
     points: Map<string, T>,
-    curves: Map<string, curve>,
+    curves: Map<string, Curve>,
     pointId: string,
 ) => {
     // find location of point, skipping if point doesn't exist or already set
@@ -222,8 +275,8 @@ export const updateCurveFromAddToExisting = <T extends point>(
 
     // find neighboring points
     const { beforeCurvePoint, afterCurvePoint } = curvePoints.reduce<{
-        beforeCurvePoint: curvePoint<T>|undefined,
-        afterCurvePoint:  curvePoint<T>|undefined
+        beforeCurvePoint: CurvePoint<T>|undefined,
+        afterCurvePoint:  CurvePoint<T>|undefined
     }>(
         (acc, { id, point, index: i, t }) => {
             // if this point before desired point, update to new closest before point
@@ -243,11 +296,14 @@ export const updateCurveFromAddToExisting = <T extends point>(
         = pointType.calculateNewPoint(beforeCurvePoint, afterCurvePoint);
 
     // generate new curve, updating t values if changed
-    const newCurve: curve = [...curve];
+    const newCurve: Curve = [...curve];
     const newCurvePoint = newCurve[index]!;
     if (newCurvePoint.t !== null) { // null is stronger value, so only set if not already null
         newCurvePoint.t = t;
     }
+
+    // select anchor of changed point
+    const newSelectedPoint: SelectedPoint = { id: pointId, type: 'anchor' };
     
     // return functions that modifies points and curve
     return {
@@ -262,11 +318,12 @@ export const updateCurveFromAddToExisting = <T extends point>(
             }
             return newPoints;
         },
-        updateCurves: (prevCurves: Map<string, curve>) => {
+        updateCurves: (prevCurves: Map<string, Curve>) => {
             const newCurves = new Map(prevCurves);
             newCurves.set(curveId, newCurve);
             return newCurves;
         },
+        newSelectedPoint,
     };
 }
 
@@ -277,8 +334,8 @@ export const updateCurveFromAddToExisting = <T extends point>(
  * @param pointId ID of the point to delete
  * @returns functions that update affected points
  */
-export const updateCurveFromDeletePoint = <T extends point>(
-    pointType: pointType<T>,
+export const updateCurveFromDeletePoint = <T extends Point>(
+    pointType: PointType<T>,
     pointId: string,
 ) => {
     // return functions that updates points

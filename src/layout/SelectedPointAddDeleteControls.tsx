@@ -5,9 +5,9 @@ import {
 import InputSet from '../templates/InputSet';
 import Button from '../templates/Button';
 
-import type { pointUpdaterFunctions, selectedPoint } from '../scripts/point';
-import type { posPoint } from '../scripts/posPoint';
-import type { curve } from '../scripts/curve';
+import type { PointUpdaterFunctions, SelectedPoint } from '../scripts/point';
+import type { PosPoint } from '../scripts/posPoint';
+import type { Curve } from '../scripts/curve';
 
 /** component defines controls to add or delete points based on selected point */
 const SelectedPointAddDeleteControls = ({
@@ -17,13 +17,13 @@ const SelectedPointAddDeleteControls = ({
     onUpdateState,
 }: {
     /** a record of all existing points */
-    posPoints: Map<string, posPoint>,
+    posPoints: Map<string, PosPoint>,
     /** a record of all existing curves */
-    curves: Map<string, curve>,
+    curves: Map<string, Curve>,
     /** the currently selected point */
-    selectedPoint: selectedPoint,
+    selectedPoint: SelectedPoint,
     /** function updates states based on updater function */
-    onUpdateState: (data: pointUpdaterFunctions|undefined) => void,
+    onUpdateState: (data: PointUpdaterFunctions|undefined) => void,
 }) => {
     // find location of selected point in curves, showing nothing if non-existant
     const pointLocation = getEntireCurveLocation(curves, selectedPoint.id);

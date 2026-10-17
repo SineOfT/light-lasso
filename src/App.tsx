@@ -2,25 +2,26 @@ import { useState, useEffect } from 'react';
 import Main from './layout/Main';
 import Sidebar from './layout/Sidebar';
 import LocalControls from './layout/LocalControls';
+import DataControls from './layout/DataControls';
 import './styles/App.css'
 
 import type { pos } from './scripts/pos';
-import type { pointUpdaterFunctions, selectedPoint } from './scripts/point';
-import type { posPoint } from './scripts/posPoint';
-import type { dataPoint } from './scripts/dataPoint';
-import type { curve } from './scripts/curve';
+import type { PointUpdaterFunctions, SelectedPoint } from './scripts/point';
+import type { PosPoint } from './scripts/posPoint';
+import type { DataPoint } from './scripts/dataPoint';
+import type { Curve } from './scripts/curve';
 
 const App = () => {
     // the dimensions of the editable canvas, as an (x,y) position
     const [resolution, setResolution] = useState<pos>({ x: 0, y: 0 });
     // a record of all existing points
-    const [points, setPoints] = useState<Map<string, posPoint>>(new Map());
+    const [points, setPoints] = useState<Map<string, PosPoint>>(new Map());
     // a record of all radius points on each curve
-    const [radiusPoints, setRadiusPoints] = useState<Map<string, dataPoint>>(new Map());
+    const [radiusPoints, setRadiusPoints] = useState<Map<string, DataPoint>>(new Map());
     // a record of all existing curves
-    const [curves, setCurves] = useState<Map<string, curve>>(new Map());
+    const [curves, setCurves] = useState<Map<string, Curve>>(new Map());
     // the point that is currently selected
-    const [selectedPoint, setSelectedPoint] = useState<selectedPoint|null>(null);
+    const [selectedPoint, setSelectedPoint] = useState<SelectedPoint|null>(null);
 
     // effect updates states to temporary mock starting data
     useEffect(() => {
@@ -45,8 +46,8 @@ const App = () => {
         ]));
         setCurves(new Map([
             ['0', [
-                { id: '0', t: 0.5 },
-                { id: '1', t: 0.5 },
+                { id: '0', t: null },
+                { id: '1', t: null },
             ]],
         ]));
 
@@ -56,7 +57,7 @@ const App = () => {
      * function applies updates to states dictated by return value of updater function
      * @param data the updater functions returned after calling an updater
      */
-    const handleUpdateState = (data: pointUpdaterFunctions|undefined) => {
+    const handleUpdateState = (data: PointUpdaterFunctions|undefined) => {
         // if updater functions undefined, skip
         if (data === undefined) { return; }
 
@@ -92,7 +93,14 @@ const App = () => {
                 onUpdateState={handleUpdateState}
             />
         </Sidebar>
-        <Sidebar direction="bottom" zIndex={2}></Sidebar>
+        <Sidebar direction="bottom" zIndex={2}>
+            <DataControls
+                radiusPoints={radiusPoints}
+                curves={curves}
+                selectedPoint={selectedPoint}
+                onUpdateState={handleUpdateState}
+            />
+        </Sidebar>
     </>);
 }
 

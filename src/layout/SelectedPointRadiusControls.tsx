@@ -1,10 +1,13 @@
 import { RADIUS_POINT_TYPE } from '../scripts/dataPoint';
+import {
+    updateCurveFromUpdatePoint, updateCurveFromAddToExisting, updateCurveFromDeletePoint
+} from '../scripts/curve';
 import TogglableInputSet from '../templates/TogglableInputSet';
 import SliderNumberInput from '../templates/SliderNumberInput';
 
-import { updatePointFromUpdate, type pointUpdaterFunctions, type selectedPoint } from '../scripts/point';
-import { updateCurveFromAddToExisting, updateCurveFromDeletePoint, type curve } from '../scripts/curve';
-import type { dataPoint } from '../scripts/dataPoint';
+import type { PointUpdaterFunctions, SelectedPoint } from '../scripts/point';
+import type { DataPoint } from '../scripts/dataPoint';
+import type { Curve } from '../scripts/curve';
 
 /** component defines controls to change radius of selected point */
 const SelectedPointRadiusControls = ({
@@ -13,14 +16,14 @@ const SelectedPointRadiusControls = ({
     selectedPoint,
     onUpdateState,
 }: {
-    /** a record of all existing curves */
-    curves: Map<string, curve>,
     /** a record of all existing radius curves */
-    radiusPoints: Map<string, dataPoint>,
+    radiusPoints: Map<string, DataPoint>,
+    /** a record of all existing curves */
+    curves: Map<string, Curve>,
     /** the currently selected point */
-    selectedPoint: selectedPoint,
+    selectedPoint: SelectedPoint,
     /** function updates states based on updater function */
-    onUpdateState: (data: pointUpdaterFunctions|undefined) => void,
+    onUpdateState: (data: PointUpdaterFunctions|undefined) => void,
 }) => {
     // find radius of selected point, if any
     const radiusPoint = radiusPoints.get(selectedPoint.id);
@@ -44,9 +47,9 @@ const SelectedPointRadiusControls = ({
      * @param newRadius new radius at selected point
      */
     const handleUpdateRadius = (newRadius: number) => {
-        const changedPoint: Partial<dataPoint> = { value: newRadius };
-        onUpdateState(updatePointFromUpdate(RADIUS_POINT_TYPE,
-            radiusPoints, selectedPoint.id, changedPoint));
+        const changedPoint: Partial<DataPoint> = { value: newRadius };
+        onUpdateState(updateCurveFromUpdatePoint(RADIUS_POINT_TYPE,
+            radiusPoints, curves, selectedPoint.id, changedPoint));
     }
 
     return (

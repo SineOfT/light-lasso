@@ -6,10 +6,10 @@ import SelectedPointAddDeleteControls from './SelectedPointAddDeleteControls';
 import SelectedPointPositionControls from './SelectedPointPositionControls';
 import SelectedPointRadiusControls from './SelectedPointRadiusControls';
 
-import type { pointUpdaterFunctions, selectedPoint } from '../scripts/point';
-import type { posPoint } from '../scripts/posPoint';
-import type { curve } from '../scripts/curve';
-import type { dataPoint } from '../scripts/dataPoint';
+import type { PointUpdaterFunctions, SelectedPoint } from '../scripts/point';
+import type { PosPoint } from '../scripts/posPoint';
+import type { Curve } from '../scripts/curve';
+import type { DataPoint } from '../scripts/dataPoint';
 
 /** component defines controls to adjust local points and curves */
 const LocalControls = ({
@@ -20,15 +20,15 @@ const LocalControls = ({
     onUpdateState,
 }: {
     /** a record of all existing points */
-    posPoints: Map<string, posPoint>,
+    posPoints: Map<string, PosPoint>,
     /** a record of all existing radius curves */
-    radiusPoints: Map<string, dataPoint>,
+    radiusPoints: Map<string, DataPoint>,
     /** a record of all existing curves */
-    curves: Map<string, curve>,
+    curves: Map<string, Curve>,
     /** the currently selected point, or null if none selected */
-    selectedPoint: selectedPoint|null,
+    selectedPoint: SelectedPoint|null,
     /** function updates states based on updater function */
-    onUpdateState: (data: pointUpdaterFunctions|undefined) => void,
+    onUpdateState: (data: PointUpdaterFunctions|undefined) => void,
 }) => {
     /**
      * function handles adding new curve, with default point at top left corner
@@ -53,6 +53,7 @@ const LocalControls = ({
                 />
                 <SelectedPointPositionControls
                     posPoints={posPoints}
+                    curves={curves}
                     selectedPoint={selectedPoint}
                     onUpdateState={onUpdateState}
                 />

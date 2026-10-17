@@ -1,26 +1,30 @@
 import { posSub, posMul, posDiv, posLength } from '../scripts/pos';
 import { POS_POINT_TYPE } from '../scripts/posPoint';
 import { getAfterControlPos, getBeforeControlPos } from '../scripts/controlPos';
-import { updatePointFromUpdate } from '../scripts/point';
+import { updateCurveFromUpdatePoint } from '../scripts/curve';
 import InputSet from '../templates/InputSet';
 import PosInput from '../templates/PosInput';
 
 import type { pos } from '../scripts/pos';
-import type { pointUpdaterFunctions, selectedPoint } from '../scripts/point';
-import type { posPoint } from '../scripts/posPoint';
+import type { PointUpdaterFunctions, SelectedPoint } from '../scripts/point';
+import type { PosPoint } from '../scripts/posPoint';
+import type { Curve } from '../scripts/curve';
 
 /** component defines controls to change position of selected point */
 const SelectedPointPositionControls = ({
     posPoints,
+    curves,
     selectedPoint,
     onUpdateState,
 }: {
-    /** a record of all existing points */
-    posPoints: Map<string, posPoint>,
+    /** a record of all existing position points */
+    posPoints: Map<string, PosPoint>,
+    /** a record of all existing curves */
+    curves: Map<string, Curve>,
     /** the currently selected point */
-    selectedPoint: selectedPoint,
+    selectedPoint: SelectedPoint,
     /** function updates states based on updater function */
-    onUpdateState: (data: pointUpdaterFunctions|undefined) => void,
+    onUpdateState: (data: PointUpdaterFunctions|undefined) => void,
 }) => {
     // find position of selected point, returning empty if none
     const posPoint = posPoints.get(selectedPoint.id);
@@ -41,7 +45,7 @@ const SelectedPointPositionControls = ({
         const newPos: pos = { ...selectedPos, ...changedPos };
 
         // determine new point
-        const newPoint: Partial<posPoint> = (() => {
+        const newPoint: Partial<PosPoint> = (() => {
             // if anchor position updated, apply new position to anchor
             if (selectedPoint.type === 'anchor') {
                 return { anchorPos: newPos }
@@ -74,7 +78,8 @@ const SelectedPointPositionControls = ({
         })();
 
         // update point based on new position
-        onUpdateState(updatePointFromUpdate(POS_POINT_TYPE, posPoints, selectedPoint.id, newPoint));
+        onUpdateState(updateCurveFromUpdatePoint(POS_POINT_TYPE,
+            posPoints, curves, selectedPoint.id, newPoint));
     }
 
     return (
