@@ -1,6 +1,10 @@
 :root {
-    --color-controls: #AAA;
-    --color-controls-bg: #EEE;
+    --color-bg: #333;
+    --color-controls: #777;
+    --color-controls-bg: #AAA;
+    --color-button-controls-bg: #555;
+    --color-button-controls-text: #DDD;
+    --color-accent: #FA6;
 
     --font-sans-serif: Copperplate, Helvetica, sans-serif;
 }
@@ -9,6 +13,12 @@ body {
     width: 100vw;
     height: 100vh;
     margin: 0;
+    background-color: var(--color-bg);
+    color: white;
     font-family: var(--font-sans-serif);
     overflow: hidden;
+}
+
+#local-controls {
+    padding-bottom: 100vh;
 }

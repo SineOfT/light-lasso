@@ -38,7 +38,7 @@ const LocalControls = ({
     }
 
     return (
-        <div className="p-m">
+        <div className="p-m" id="local-controls">
             {selectedPoint && (<>
                 <SelectedPointTraversalControls
                     curves={curves}

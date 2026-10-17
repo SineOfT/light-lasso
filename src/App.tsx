@@ -84,7 +84,7 @@ const App = () => {
             selectedPoint={selectedPoint}
             onUpdateState={handleUpdateState}
         />
-        <Sidebar direction="right" zIndex={1}>
+        <Sidebar direction="right" zIndex={1} overflow="hidden scroll">
             <LocalControls
                 posPoints={points}
                 radiusPoints={radiusPoints}

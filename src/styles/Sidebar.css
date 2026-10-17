@@ -37,8 +37,8 @@
     height: 1rem;
     border-width: 5px;
     border-style: solid;
-    border-top-color: white;
-    border-left-color: white;
+    border-top-color: var(--color-bg);
+    border-left-color: var(--color-bg);
     border-bottom-color: transparent;
     border-right-color: transparent;
     transform-origin: 0 0;
@@ -51,7 +51,7 @@
 .sidebar-left   .bar-handle::after { transform: translate(1rem,   1.5rem) rotate( 135deg); }
 
 .resizable-sidebar > section {
-    background-color: white;
+    background-color: var(--color-bg);
 }
 
 .sidebar-left   > section { height: 100%; }

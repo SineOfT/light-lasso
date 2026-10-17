@@ -8,12 +8,15 @@ import '../styles/Sidebar.css';
 const Sidebar = ({
     direction,
     zIndex,
+    overflow,
     children
 }: {
     /** the side of the window on which the sidebar is on */
     direction: 'top'|'bottom'|'left'|'right',
     /** the z-index of the sidebar, used to decide which sidebars appear on top of others */
     zIndex: number,
+    /** the overflow settings of the sidebar, used to decide whether controls can scroll or not */
+    overflow?: string,
     children?: React.ReactNode,
 }) => {
     // a DOM ref to the sidebar container
@@ -95,10 +98,10 @@ const Sidebar = ({
             <div className="resize-bar">
                 <div className="bar-handle" ref={barHandleRef}></div>
             </div>
-            <section ref={sidebarContainerRef} style={isVertical
-                ? { width: 0 }
-                : { height: 0 }
-            }>
+            <section ref={sidebarContainerRef} style={{
+                overflow,
+                ...(isVertical ? { width: 0 } : { height: 0 })
+            }}>
                 {children}
             </section>
         </aside>
