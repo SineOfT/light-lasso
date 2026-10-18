@@ -141,15 +141,15 @@ const DataPointCurveEditor = ({
     }
 
     /** function maps a local data point position into an absolute position on a canvas */
-    const convertPosToCanvasPx = (canvas: HTMLCanvasElement, pos: pos): pos => ({
-        x: pos.x / (positionedDataCount+1) * canvas.width,
-        y: (1 - convertExponentialValueToT(pos.y, dataPointType.upperValue)) * canvas.height,
+    const convertPosToCanvasPx = (canvasSize: pos, pos: pos): pos => ({
+        x: pos.x / (positionedDataCount+1) * canvasSize.x,
+        y: (1 - convertExponentialValueToT(pos.y, dataPointType.upperValue)) * canvasSize.y,
     })
 
     /** function maps an absolute position on a canvas into a local data point position */
-    const convertCanvasPxToPos = (canvas: HTMLCanvasElement, px: pos): pos => ({
-        x: px.x / canvas.width * (positionedDataCount+1),
-        y: convertExponentialTToValue(1 - (px.y / canvas.height), dataPointType.upperValue),
+    const convertCanvasPxToPos = (canvasSize: pos, px: pos): pos => ({
+        x: px.x / canvasSize.x * (positionedDataCount+1),
+        y: convertExponentialTToValue(1 - (px.y / canvasSize.y), dataPointType.upperValue),
     })
 
     /**
@@ -157,7 +157,7 @@ const DataPointCurveEditor = ({
      * @param canvas a reference to the canvas to draw on
      * @param ctx the drawing context to use to draw on
      */
-    const drawBg = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
+    const drawBg = (canvasSize: pos, ctx: CanvasRenderingContext2D) => {
         // save context settings so don't affect later drawings
         ctx.save();
 
@@ -172,10 +172,10 @@ const DataPointCurveEditor = ({
             // if constricted to certain x position, is positioned so add indicator line
             const { bounds } = draggablePoint;
             if (bounds?.x?.min !== undefined && bounds?.x?.min === bounds?.x?.max) {
-                const xPx = convertPosToCanvasPx(canvas, { x: bounds.x.min, y: 0 }).x; // don't care about y
+                const xPx = convertPosToCanvasPx(canvasSize, { x: bounds.x.min, y: 0 }).x; // don't care about y
                 ctx.beginPath();
                 ctx.moveTo(xPx, 0);
-                ctx.lineTo(xPx, canvas.height);
+                ctx.lineTo(xPx, canvasSize.y);
                 ctx.stroke();
             }
         }
@@ -186,7 +186,7 @@ const DataPointCurveEditor = ({
         ctx.beginPath();
         for (const { value, t } of dataLut) {
             const lutPos = { x: t, y: value };
-            const lutPosPx = convertPosToCanvasPx(canvas, lutPos);
+            const lutPosPx = convertPosToCanvasPx(canvasSize, lutPos);
             ctx.lineTo(lutPosPx.x, lutPosPx.y);
         }
         ctx.stroke();

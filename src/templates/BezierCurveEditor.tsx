@@ -74,20 +74,20 @@ const BezierCurveEditor = ({
     /** function updates value of given point, based on position moved in editor */
     onUpdatePoint: (pointId: string, changedPos: PartialPoint<PosPoint>) => void,
     /** function converts position of each point into canvas pixel coordinates */
-    convertPosToCanvasPx: (canvas: HTMLCanvasElement, pos: pos) => pos,
+    convertPosToCanvasPx: (canvasSize: pos, pos: pos) => pos,
     /** function converts position of each point from canvas pixel coordinates to position */
-    convertCanvasPxToPos: (canvas: HTMLCanvasElement, px: pos) => pos,
+    convertCanvasPxToPos: (canvasSize: pos, px: pos) => pos,
     /** function draws the background on each canvas, before the points are drawn */
-    drawBg: (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => void,
+    drawBg: (canvasSize: pos, ctx: CanvasRenderingContext2D) => void,
 }) => {
+    // current dimensions of canvas used to draw the editor
+    const [canvasSize, setCanvasSize] = useState<pos>(EMPTY_POS);
     // current position of the canvas, offset from the center position
     const [canvasOriginPx, setCanvasOriginPx] = useState<pos>(EMPTY_POS);
     // the position in canvas pixels where a drag was started
     const [dragStartPx, setDragStartPx] = useState<DragStart|null>(null);
     // a DOM ref to the canvas which the lasso is drawn on
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    // a ref to the ID of the animation loop, used to stop the animation loop
-    const drawLoopIdRef = useRef<number|null>(null);
 
     // which point is currently being dragged, if any
     const draggingPoint = useMemo(() => (selectedPoint !== null
@@ -110,20 +110,17 @@ const BezierCurveEditor = ({
                 const borderBoxSize = entry.borderBoxSize[0]!;
 
                 // only set width and height if changed
-                if (canvas.width !== borderBoxSize.inlineSize) {
-                    canvas.width = borderBoxSize.inlineSize;
-                }
-                if (canvas.height !== borderBoxSize.blockSize) {
-                    canvas.height = borderBoxSize.blockSize;
+                if (canvas.width === borderBoxSize.inlineSize
+                 && canvas.height === borderBoxSize.blockSize) {
+                    return; 
                 }
 
-                // redraw, since changing dimensions clears canvas content
-                const ctx = canvas.getContext('2d');
-                if (ctx === null) {
-                    console.warn('Failed to draw on canvas, ensure that HTML canvas is enabled');
-                    return;
-                }
-                draw(canvas, ctx, draggablePoints, pointRadius, canvasOriginPx);
+                // update dimensions of canvas in DOM
+                canvas.width = borderBoxSize.inlineSize;
+                canvas.height = borderBoxSize.blockSize;
+                
+                // update dimensions of canvas in state
+                setCanvasSize({ x: canvas.width, y: canvas.height });
             });
         });
 
@@ -134,37 +131,22 @@ const BezierCurveEditor = ({
         return () => {
             canvasResizeObserver.disconnect();
         }
-    }, [draggablePoints, pointRadius, canvasRef, canvasOriginPx]);
+    }, [canvasRef]);
 
-    // effect draws canvas every frame
+    // effect draws canvas when value updated
     useEffect(() => {
-        // get canvas and context from DOM ref
+        // get canvas and context from DOM
         if (canvasRef.current === null) { return; }
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvasRef.current.getContext('2d');
         if (ctx === null) {
             console.warn('Failed to draw on canvas, ensure that HTML canvas is enabled');
             return;
         }
 
-        // define draw loop
-        const drawLoop = () => {
-            draw(canvas, ctx, draggablePoints, pointRadius, canvasOriginPx);
-            drawLoopIdRef.current = window.requestAnimationFrame(drawLoop);
-        }
+        // draw editor
+        draw(ctx, canvasSize, canvasOriginPx, draggablePoints, pointRadius);
 
-        // commence draw loop immediately
-        drawLoop();
-
-        // return cleanup function that terminates draw loop
-        return () => {
-            if (drawLoopIdRef.current !== null) {
-                window.cancelAnimationFrame(drawLoopIdRef.current);
-                drawLoopIdRef.current = null;
-            }
-        }
-
-    }, [draggablePoints, pointRadius, canvasOriginPx, canvasRef]);
+    }, [canvasRef, canvasSize, canvasOriginPx, draggablePoints, pointRadius]);
 
     // effect stops drag when mouse lifted
     useEffect(() => {
@@ -185,14 +167,14 @@ const BezierCurveEditor = ({
      * @param pointRadius the radius of each point, in canvas pixel units 
      */
     const draw = (
-        canvas: HTMLCanvasElement,
         ctx: CanvasRenderingContext2D,
+        canvasSize: pos,
+        canvasOriginPx: pos,
         draggablePoints: DraggablePoint[],
         pointRadius: number,
-        canvasOriginPx: pos,
     ) => {
         // clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvasSize.x, canvasSize.y);
 
         // save default state of context
         ctx.save();
@@ -204,23 +186,23 @@ const BezierCurveEditor = ({
         ctx.fillStyle = BG_COLOR;
         ctx.lineWidth = BG_OUTLINE_WIDTH;
         ctx.strokeStyle = BG_INDICATOR_COLOR;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(  0, 0, canvasSize.x, canvasSize.y);
+        ctx.strokeRect(0, 0, canvasSize.x, canvasSize.y);
 
         // draw background
-        drawBg(canvas, ctx);
+        drawBg(canvasSize, ctx);
 
         // draw points
         ctx.strokeStyle = DRAGGABLE_POINT_COLOR;
         ctx.lineWidth = pointRadius * 0.2;
         draggablePoints.forEach((draggablePoint) => {
             const { pos, isSelected, type } = draggablePoint;
-            const posPx = convertPosToCanvasPx(canvas, pos);
+            const posPx = convertPosToCanvasPx(canvasSize, pos);
             ctx.fillStyle = isSelected ? SELECTED_POINT_COLOR : DRAGGABLE_POINT_COLOR;
 
             // if is control point, draw line to anchor position
             if (type === 'beforeControl' || type === 'afterControl') {
-                const anchorPosPx = convertPosToCanvasPx(canvas, draggablePoint.anchorPos);
+                const anchorPosPx = convertPosToCanvasPx(canvasSize, draggablePoint.anchorPos);
                 ctx.beginPath();
                 ctx.moveTo(posPx.x, posPx.y);
                 ctx.lineTo(anchorPosPx.x, anchorPosPx.y);
@@ -242,14 +224,11 @@ const BezierCurveEditor = ({
      * @param e event provided by the event listener
      */
     const handleDragStart = (e: MouseEvent<HTMLCanvasElement>) => {
-        // ensure that canvas exists
-        if (canvasRef.current === null) { return; } 
-
         // find points within mouse position
         const mousePx = { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY };
         const mouseCanvasPx = posSub(mousePx, canvasOriginPx); // translate based on canvas origin
         const clickedPoints = draggablePoints.filter(({ pos }) => posWithin(
-            convertPosToCanvasPx(canvasRef.current!, pos),
+            convertPosToCanvasPx(canvasSize, pos),
             mouseCanvasPx,
             pointRadius,
         ));
@@ -262,7 +241,7 @@ const BezierCurveEditor = ({
         // otherwise, select clicked point and start dragging point
         } else {
             const { id, pos, type } = clickedPoints[0]!;
-            const posPx = convertPosToCanvasPx(canvasRef.current, pos);
+            const posPx = convertPosToCanvasPx(canvasSize, pos);
             onUpdateSelected({ id, type });
             setDragStartPx({ initial: posPx, mouse: mousePx });
         }
@@ -301,13 +280,10 @@ const BezierCurveEditor = ({
      * @param mousePx the current position of the mouse on the canvas, in canvas pixels
      */
     const handleDragPoint = (draggingPoint: DraggablePoint, dragStartPx: DragStart, mousePx: pos) => {
-        // ensure that canvas exists
-        if (canvasRef.current === null) { return; } 
-
         // calculate new position of point
-        const startMousePos = convertCanvasPxToPos(canvasRef.current, dragStartPx.mouse);
-        const currMousePos  = convertCanvasPxToPos(canvasRef.current, mousePx);
-        const initialPos    = convertCanvasPxToPos(canvasRef.current, dragStartPx.initial);
+        const startMousePos = convertCanvasPxToPos(canvasSize, dragStartPx.mouse);
+        const currMousePos  = convertCanvasPxToPos(canvasSize, mousePx);
+        const initialPos    = convertCanvasPxToPos(canvasSize, dragStartPx.initial);
         const newPos = posAdd(initialPos, posSub(currMousePos, startMousePos));
         
         // determine which positions in point need to be changed
@@ -319,15 +295,15 @@ const BezierCurveEditor = ({
             }
 
             // if control dragged, find position of opposing control point
-            const newPosPx = convertPosToCanvasPx(canvasRef.current, newPos);
-            const anchorPosPx = convertPosToCanvasPx(canvasRef.current, draggingPoint.anchorPos);
+            const newPosPx = convertPosToCanvasPx(canvasSize, newPos);
+            const anchorPosPx = convertPosToCanvasPx(canvasSize, draggingPoint.anchorPos);
             const oppositeControlPosPx =
-                convertPosToCanvasPx(canvasRef.current, draggingPoint.oppositeControlPos);
+                convertPosToCanvasPx(canvasSize, draggingPoint.oppositeControlPos);
             const oppositeControlLengthPx = posDistance(oppositeControlPosPx, anchorPosPx);
             const newOppositeControlPosPx = posAdd(
                 anchorPosPx,
                 posWithLength(posSub(anchorPosPx, newPosPx), oppositeControlLengthPx));
-            const newOppositeControlPos = convertCanvasPxToPos(canvasRef.current, newOppositeControlPosPx);
+            const newOppositeControlPos = convertCanvasPxToPos(canvasSize, newOppositeControlPosPx);
 
             // calculate offset between current anchor and new position
             const controlLength         = posDistance(newPos,                draggingPoint.anchorPos);
@@ -373,9 +349,6 @@ const BezierCurveEditor = ({
      * @param mousePx the current position of the mouse on the canvas, in canvas pixels
      */
     const handleDragCanvas = (dragStartPx: DragStart, mousePx: pos) => {
-        // ensure that canvas exists
-        if (canvasRef.current === null) { return; } 
-
         // calculate new position of canvas, as inverse of mouse movement
         const newPx = posAdd(dragStartPx.initial, posSub(mousePx, dragStartPx.mouse));
         

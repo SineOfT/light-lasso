@@ -115,7 +115,7 @@ const Main = ({
     }
 
     /** location point position and absolute canvas position map one-to-one */
-    const convertPosCanvasPx = (_canvas: HTMLCanvasElement, pos: pos): pos => pos;
+    const convertPosCanvasPx = (_canvasSize: pos, pos: pos): pos => pos;
 
     return (
         <main>
