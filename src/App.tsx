@@ -23,6 +23,8 @@ const App = () => {
     const [curves, setCurves] = useState<Map<string, Curve>>(new Map());
     // the point that is currently selected
     const [selectedPoint, setSelectedPoint] = useState<SelectedPoint|null>(null);
+    // the curve that is currently selected
+    const [selectedCurveId, setSelectedCurveId] = useState<string|null>();
     // a LUT for the radius data points in each curve 
     const [radiusLuts, setRadiusLuts] = useState<Map<string, LutPoint<number>[]>>(new Map());
 
@@ -89,6 +91,9 @@ const App = () => {
         if (data.newSelectedPoint !== undefined) {
             setSelectedPoint(data.newSelectedPoint);
         }
+        if (data.newSelectedCurveId !== undefined) {
+            setSelectedCurveId(data.newSelectedCurveId);
+        }
     }
 
     return (<>
@@ -114,6 +119,7 @@ const App = () => {
                 curves={curves}
                 radiusLuts={radiusLuts}
                 selectedPoint={selectedPoint}
+                selectedCurveId={selectedCurveId}
                 onUpdateState={handleUpdateState}
             />
         </Sidebar>

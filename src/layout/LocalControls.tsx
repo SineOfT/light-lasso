@@ -17,6 +17,7 @@ const LocalControls = ({
     radiusPoints,
     curves,
     selectedPoint,
+    selectedCurveId,
     onUpdateState,
 }: {
     /** a record of all existing points */
@@ -27,6 +28,8 @@ const LocalControls = ({
     curves: Map<string, Curve>,
     /** the currently selected point, or null if none selected */
     selectedPoint: SelectedPoint|null,
+    /** ID of curve currently selected */
+    selectedCurveId: string,
     /** function updates states based on updater function */
     onUpdateState: (data: PointUpdaterFunctions|undefined) => void,
 }) => {
@@ -43,12 +46,14 @@ const LocalControls = ({
                 <SelectedPointTraversalControls
                     curves={curves}
                     selectedPoint={selectedPoint}
+                    selectedCurveId={selectedCurveId}
                     onUpdateState={onUpdateState}
                 />
                 <SelectedPointAddDeleteControls
                     posPoints={posPoints}
                     curves={curves}
                     selectedPoint={selectedPoint}
+                    selectedCurveId={selectedCurveId}
                     onUpdateState={onUpdateState}
                 />
                 <SelectedPointPositionControls

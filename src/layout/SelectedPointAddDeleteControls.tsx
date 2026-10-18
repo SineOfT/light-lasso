@@ -1,7 +1,5 @@
 import { POS_POINT_TYPE } from '../scripts/posPoint';
-import {
-    getEntireCurveLocation, updateCurveFromAddPoint, updateCurveFromDelete, updateCurveFromDeletePoint,
-} from '../scripts/curve';
+import { updateCurveFromAddPoint, updateCurveFromDelete, updateCurveFromDeletePoint } from '../scripts/curve';
 import InputSet from '../templates/InputSet';
 import Button from '../templates/Button';
 
@@ -14,6 +12,7 @@ const SelectedPointAddDeleteControls = ({
     posPoints,
     curves,
     selectedPoint,
+    selectedCurveId,
     onUpdateState,
 }: {
     /** a record of all existing points */
@@ -22,14 +21,11 @@ const SelectedPointAddDeleteControls = ({
     curves: Map<string, Curve>,
     /** the currently selected point */
     selectedPoint: SelectedPoint,
+    /** ID of curve currently selected */
+    selectedCurveId: string,
     /** function updates states based on updater function */
     onUpdateState: (data: PointUpdaterFunctions|undefined) => void,
 }) => {
-    // find location of selected point in curves, showing nothing if non-existant
-    const pointLocation = getEntireCurveLocation(curves, selectedPoint.id);
-    if (pointLocation === undefined) { return <></>; }
-    const { curveId } = pointLocation;
-
     /**
      * function handles adding new point to curve, relative to selected point
      * @param isAfter whether or not new point added before or after given point
@@ -51,7 +47,7 @@ const SelectedPointAddDeleteControls = ({
      * function handles deleting the entire curve the currently selected point is on
      */
     const handleDeleteCurve = () => {
-        onUpdateState(updateCurveFromDelete(curveId));
+        onUpdateState(updateCurveFromDelete(selectedCurveId));
     }
 
     return (<>

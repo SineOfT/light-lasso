@@ -24,6 +24,7 @@ export interface PointUpdaterFunctions {
     updateRadiusPoints?: (prevRadiusPoints: Map<string, DataPoint>) => Map<string, DataPoint>,
     updateCurves?: (prevCurves: Map<string, Curve>) => Map<string, Curve>,
     newSelectedPoint?: SelectedPoint|null,
+    newSelectedCurveId?: string|null,
 }
 
 /** type represents function that calculates new point on curve based on neighboring points */
@@ -74,10 +75,10 @@ export interface SelectedPoint {
 /**
  * function generates changes needed to update current selected point
  * @param newSelectedPoint the newly selected point, or null if deselected
- * @returns new selected point
+ * @returns point updater function that updates current selected point
 */
-export const updateSelectedPoint
-    = (newSelectedPoint: SelectedPoint|null) => ({ newSelectedPoint });
+export const updateSelectedPoint = (newSelectedPoint: SelectedPoint|null): PointUpdaterFunctions =>
+    ({ newSelectedPoint });
 
 /**
  * function calculates where to add position of new point added between 2 existing points

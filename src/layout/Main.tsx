@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { getAfterControlPos, getBeforeControlPos } from '../scripts/controlPos';
-import { updateSelectedPoint } from '../scripts/point';
-import { updateCurveFromUpdatePoint } from '../scripts/curve';
+import { getEntirePointLocation, updateCurveFromUpdatePoint } from '../scripts/curve';
 import { POS_POINT_TYPE } from '../scripts/posPoint';
 import BezierCurveEditor from '../templates/BezierCurveEditor';
 
@@ -86,7 +85,23 @@ const Main = ({
      * @param newSelectedPoint the newly selected point, or null if none selected
      */
     const handleUpdateSelected = (newSelectedPoint: SelectedPoint|null) => {
-        onUpdateState(updateSelectedPoint(newSelectedPoint));
+        // if deselected, deselect both point and curve
+        if (newSelectedPoint === null) {
+            onUpdateState({
+                newSelectedPoint: null,
+                newSelectedCurveId: null,
+            });
+        
+        // if selected, also select curve point is on
+        } else {
+            const pointLocation = getEntirePointLocation(curves, newSelectedPoint.id);
+            if (pointLocation === undefined) { return; }
+            const { curveId } = pointLocation;
+            onUpdateState({
+                newSelectedPoint,
+                newSelectedCurveId: curveId,
+            });
+        }
     }
 
     /**

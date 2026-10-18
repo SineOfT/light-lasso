@@ -30,7 +30,7 @@ export interface CurvePoint<T extends Point> {
  * @param pointId the ID of the point to locate
  * @returns the location of the point in the entire curve curves, or undefined if non-existant
  */
-export const getEntireCurveLocation = (
+export const getEntirePointLocation = (
     curves: Map<string, Curve>,
     pointId: string,
 ) => {
@@ -44,6 +44,32 @@ export const getEntireCurveLocation = (
     const index = curve.findIndex(({ id }) => id === pointId);
 
     return { curveId, curve, index };
+}
+
+/**
+ * function gets all points on given curve that is of given type
+ * @template T the type of data on the curve to get
+ * @param points a record of all existing points from which to get the curve for
+ * @param curves a record of all existing curves
+ * @param curveId the ID of the curve to get points
+ * @returns curve consisting of all points of given type
+ */
+export const getCurvePoints = <T extends Point>(
+    points: Map<string, T>,
+    curves: Map<string, Curve>,
+    curveId: string,
+) => {
+    // get curve, if exists
+    const curve = curves.get(curveId);
+    if (curve === undefined) { return; }
+
+    // filter curve to only contain points existing in desired record
+    const curvePoints = curve
+        .map(({ id, t }, index) => ({ id, point: points.get(id), index, t }))
+        .filter((curvePoint): curvePoint is { id: string, point: T, index: number, t: number } =>
+            curvePoint.point !== undefined);
+
+    return curvePoints;
 }
 
 /**
@@ -61,15 +87,13 @@ export const getCurvePointLocation = <T extends Point>(
     pointId: string,
 ) => {
     // find location of point on entire curve
-    const pointLocation = getEntireCurveLocation(curves, pointId);
+    const pointLocation = getEntirePointLocation(curves, pointId);
     if (pointLocation === undefined) { return; }
     const { curveId, curve, index } = pointLocation;
 
-    // filter curve to only contain points existing in desired record
-    const curvePoints = curve
-        .map(({ id, t }, index) => ({ id, point: points.get(id), index, t }))
-        .filter((curvePoint): curvePoint is { id: string, point: T, index: number, t: number } =>
-            curvePoint.point !== undefined);
+    // get curve points from curve
+    const curvePoints = getCurvePoints(points, curves, curveId);
+    if (curvePoints === undefined) { return; }
 
     // find index of point on curve points
     const curvePointIndex = curvePoints.findIndex(({ id }) => id === pointId);
@@ -147,7 +171,7 @@ export const updateCurveFromUpdatePoint = <T extends Point>(
     newT?: number,
 ): PointUpdaterFunctions|undefined => {
     // find location of point
-    const pointLocation = getCurvePointLocation(points, curves, pointId);
+    const pointLocation = getEntirePointLocation(curves, pointId);
     if (pointLocation === undefined) { return; }
     const { curveId, index } = pointLocation;
 
