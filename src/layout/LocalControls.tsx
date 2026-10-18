@@ -28,8 +28,8 @@ const LocalControls = ({
     curves: Map<string, Curve>,
     /** the currently selected point, or null if none selected */
     selectedPoint: SelectedPoint|null,
-    /** ID of curve currently selected */
-    selectedCurveId: string,
+    /** ID of curve currently selected, or null if none selected */
+    selectedCurveId: string|null,
     /** function updates states based on updater function */
     onUpdateState: (data: PointUpdaterFunctions|undefined) => void,
 }) => {
@@ -43,19 +43,21 @@ const LocalControls = ({
     return (
         <div className="p-m" id="local-controls">
             {selectedPoint && (<>
-                <SelectedPointTraversalControls
-                    curves={curves}
-                    selectedPoint={selectedPoint}
-                    selectedCurveId={selectedCurveId}
-                    onUpdateState={onUpdateState}
-                />
-                <SelectedPointAddDeleteControls
-                    posPoints={posPoints}
-                    curves={curves}
-                    selectedPoint={selectedPoint}
-                    selectedCurveId={selectedCurveId}
-                    onUpdateState={onUpdateState}
-                />
+                {selectedCurveId && (<>
+                    <SelectedPointTraversalControls
+                        curves={curves}
+                        selectedPoint={selectedPoint}
+                        selectedCurveId={selectedCurveId}
+                        onUpdateState={onUpdateState}
+                    />
+                    <SelectedPointAddDeleteControls
+                        posPoints={posPoints}
+                        curves={curves}
+                        selectedPoint={selectedPoint}
+                        selectedCurveId={selectedCurveId}
+                        onUpdateState={onUpdateState}
+                    />
+                </>)}
                 <SelectedPointPositionControls
                     posPoints={posPoints}
                     curves={curves}

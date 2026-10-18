@@ -24,7 +24,7 @@ const App = () => {
     // the point that is currently selected
     const [selectedPoint, setSelectedPoint] = useState<SelectedPoint|null>(null);
     // the curve that is currently selected
-    const [selectedCurveId, setSelectedCurveId] = useState<string|null>();
+    const [selectedCurveId, setSelectedCurveId] = useState<string|null>(null);
     // a LUT for the radius data points in each curve 
     const [radiusLuts, setRadiusLuts] = useState<Map<string, LutPoint<number>[]>>(new Map());
 
@@ -110,18 +110,21 @@ const App = () => {
                 radiusPoints={radiusPoints}
                 curves={curves}
                 selectedPoint={selectedPoint}
+                selectedCurveId={selectedCurveId}
                 onUpdateState={handleUpdateState}
             />
         </Sidebar>
         <Sidebar direction="bottom" zIndex={2}>
-            <DataControls
-                radiusPoints={radiusPoints}
-                curves={curves}
-                radiusLuts={radiusLuts}
-                selectedPoint={selectedPoint}
-                selectedCurveId={selectedCurveId}
-                onUpdateState={handleUpdateState}
-            />
+            {selectedCurveId !== null && (
+                <DataControls
+                    radiusPoints={radiusPoints}
+                    curves={curves}
+                    radiusLuts={radiusLuts}
+                    selectedPoint={selectedPoint}
+                    selectedCurveId={selectedCurveId}
+                    onUpdateState={handleUpdateState}
+                />
+            )}
         </Sidebar>
     </>);
 }
