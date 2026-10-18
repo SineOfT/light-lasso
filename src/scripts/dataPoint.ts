@@ -23,12 +23,12 @@ export type DataPointType = PointType<DataPoint> & {
  * @param beforePoint data before where new point added, or undefined if none
  * @param afterPoint data after where new point added, or undefined if none
  */
-export const calculateNewDataPoint: NewPointCalculator<DataPoint> = (beforePoint, afterPoint) => {
+export const calculateNewDataPoint: NewPointCalculator<DataPoint> = (beforePoint, afterPoint, currT) => {
     // if either neighboring point undefined, set to default
     beforePoint ??= { id: '', point: { value: 0, controlPos: EMPTY_CONTROL_POS }, t: null };
     afterPoint  ??= { id: '', point: { value: 0, controlPos: EMPTY_CONTROL_POS }, t: null };
 
-    // return point halfway between points
+    // find point halfway between points
     const beforeCurvePoint = {
         anchorPos: { x: beforePoint.t ?? 0, y: beforePoint.point.value },
         controlPos: beforePoint.point.controlPos,
@@ -37,8 +37,17 @@ export const calculateNewDataPoint: NewPointCalculator<DataPoint> = (beforePoint
         anchorPos: { x: afterPoint.t ?? 1, y: afterPoint.point.value },
         controlPos: afterPoint.point.controlPos,
     }
-    const { newPoint, newBeforeControlPosLength, newAfterControlPosLength } 
+    let { newPoint, newBeforeControlPosLength, newAfterControlPosLength } 
         = calculateNewPointBetween(beforeCurvePoint, afterCurvePoint);
+
+    // if new point already positioned, double each t value since adding this point leads to double t range
+    if (currT === null) {
+        newPoint.controlPos.beforeLength *= 2;
+        newPoint.controlPos.afterLength *= 2;
+        newBeforeControlPosLength *= 2;
+        newAfterControlPosLength *= 2;
+    }
+
     return {
         newPoint: { value: newPoint.anchorPos.y, controlPos: newPoint.controlPos },
         t: newPoint.anchorPos.x,

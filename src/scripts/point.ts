@@ -30,6 +30,7 @@ export interface PointUpdaterFunctions {
 export type NewPointCalculator<T extends Point> = (
     beforePoint: CurvePoint<T>|undefined,
     afterPoint:  CurvePoint<T>|undefined,
+    currT?: number|null,
 ) => {
     newPoint: T,
     t: number|null,
@@ -93,13 +94,13 @@ export const calculateNewPointBetween = (
     newAfterControlPosLength: number,
 } => {
     // find positions of control positions
-    const beforeControlPos = getAfterControlPos(beforeCurvePoint.anchorPos, beforeCurvePoint.controlPos);
-    const afterControlPos = getBeforeControlPos(afterCurvePoint.anchorPos,  afterCurvePoint.controlPos );
+    const beforeControlPos = getAfterControlPos( beforeCurvePoint.anchorPos, beforeCurvePoint.controlPos);
+    const afterControlPos  = getBeforeControlPos(afterCurvePoint.anchorPos,  afterCurvePoint.controlPos );
 
     // find positions of intermediary positions in bezier curve
     const a1 = posLerp(beforeCurvePoint.anchorPos, beforeControlPos, 0.5);
-    const a2 = posLerp(afterCurvePoint.anchorPos,  afterControlPos,  0.5);
-    const a3 = posLerp(beforeControlPos,      afterControlPos,  0.5);
+    const a2 = posLerp(beforeControlPos,           afterControlPos,  0.5);
+    const a3 = posLerp(afterCurvePoint.anchorPos,  afterControlPos,  0.5);
     const b1 = posLerp(a1, a2, 0.5);
     const b2 = posLerp(a3, a2, 0.5);
     const c1 = posLerp(b1, b2, 0.5);

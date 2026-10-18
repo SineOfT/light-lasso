@@ -10,6 +10,7 @@ import type { PointUpdaterFunctions, SelectedPoint } from './scripts/point';
 import type { PosPoint } from './scripts/posPoint';
 import type { DataPoint } from './scripts/dataPoint';
 import type { Curve } from './scripts/curve';
+import { generateCubicBezierLutForDataCurve, type LutPoint } from './scripts/lut';
 
 const App = () => {
     // the dimensions of the editable canvas, as an (x,y) position
@@ -22,6 +23,8 @@ const App = () => {
     const [curves, setCurves] = useState<Map<string, Curve>>(new Map());
     // the point that is currently selected
     const [selectedPoint, setSelectedPoint] = useState<SelectedPoint|null>(null);
+    // a LUT for the radius data points in each curve 
+    const [radiusLuts, setRadiusLuts] = useState<Map<string, LutPoint<number>[]>>(new Map());
 
     // effect updates states to temporary mock starting data
     useEffect(() => {
@@ -52,6 +55,18 @@ const App = () => {
         ]));
 
     }, []);
+
+    // effect updates LUT for radius data points when it or curve updated
+    useEffect(() => {
+        const newRadiusLuts = new Map(
+            Array.from(curves).map(([curveId, curve]) => [
+                curveId,
+                generateCubicBezierLutForDataCurve(radiusPoints, curve),
+            ])
+        );
+        setRadiusLuts(newRadiusLuts);
+
+    }, [radiusPoints, curves]);
 
     /**
      * function applies updates to states dictated by return value of updater function
@@ -97,6 +112,7 @@ const App = () => {
             <DataControls
                 radiusPoints={radiusPoints}
                 curves={curves}
+                radiusLuts={radiusLuts}
                 selectedPoint={selectedPoint}
                 onUpdateState={handleUpdateState}
             />

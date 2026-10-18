@@ -291,13 +291,15 @@ export const updateCurveFromAddToExisting = <T extends Point>(
         { beforeCurvePoint: undefined, afterCurvePoint: undefined }
     );
 
-    // generate new point
-    const { newPoint, t, newBeforeControlPosLength, newAfterControlPosLength }
-        = pointType.calculateNewPoint(beforeCurvePoint, afterCurvePoint);
-
-    // generate new curve, updating t values if changed
+    // create copy of curve to update, find updated point
     const newCurve: Curve = [...curve];
     const newCurvePoint = newCurve[index]!;
+
+    // generate new point
+    const { newPoint, t, newBeforeControlPosLength, newAfterControlPosLength }
+        = pointType.calculateNewPoint(beforeCurvePoint, afterCurvePoint, newCurvePoint.t);
+
+    // updating t values on new curve if changed
     if (newCurvePoint.t !== null) { // null is stronger value, so only set if not already null
         newCurvePoint.t = t;
     }

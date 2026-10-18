@@ -39,9 +39,6 @@ export const posNormalize = (pos: pos) => posDiv(pos, posLength(pos));
 /** function changes a position to have a given length, while maintaining direction */
 export const posWithLength = (pos: pos, length: number) => posMul(posNormalize(pos), length);
 
-/** function takes a position and an anchor, and finds the position that is opposite to the given position */
-export const getInvPos = (pos: pos, anchor: pos) => posSub(posMul(anchor, 2), pos);
-
 /** function finds the position which is linearly interpolated between 2 positions */
 export const posLerp = (a: pos, b: pos, t: number) => posAdd(posMul(a, 1-t), posMul(b, t));
 /** function finds how far a position is between 2 other positions, linearly */

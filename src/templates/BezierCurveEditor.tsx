@@ -31,9 +31,13 @@ export type DraggablePoint = {
 })
 
 /** color of the draggable points in the curve editor */
-const DRAGGABLE_POINT_COLOR = '#DDD';
+export const DRAGGABLE_POINT_COLOR = '#DDD';
 /** color of the draggable point in the curve editor that is selected */
-const SELECTED_POINT_COLOR = '#FA6';
+export const SELECTED_POINT_COLOR = '#FA6';
+/** color of curve in curve editor */
+export const CURVE_COLOR = '#EEE';
+/** color of any background indicators in the curve editor */
+export const BG_INDICATOR_COLOR = '#FFF1';
 
 /** component defines a Bezier curve editor, where points can be dragged to modify shape */
 const BezierCurveEditor = ({

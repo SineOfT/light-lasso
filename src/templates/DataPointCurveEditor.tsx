@@ -3,7 +3,7 @@ import { convertExponentialTToValue, convertExponentialValueToT } from '../scrip
 import { updateSelectedPoint } from '../scripts/point';
 import { updateCurveFromUpdatePoint } from '../scripts/curve';
 import { getAfterControlPos, getBeforeControlPos } from '../scripts/controlPos';
-import BezierCurveEditor from './BezierCurveEditor';
+import BezierCurveEditor, { BG_INDICATOR_COLOR, CURVE_COLOR } from './BezierCurveEditor';
 
 import type { pos } from '../scripts/pos';
 import type { PartialPoint, PointUpdaterFunctions, SelectedPoint } from '../scripts/point';
@@ -11,6 +11,7 @@ import type { PosPoint } from '../scripts/posPoint';
 import type { DataPoint, DataPointType } from '../scripts/dataPoint';
 import type { Curve } from '../scripts/curve';
 import type { DraggablePoint } from './BezierCurveEditor';
+import type { LutPoint } from '../scripts/lut';
 
 /** the radius of the data point on the curve editor */
 const DATA_POINT_RADIUS = 10;
@@ -21,6 +22,7 @@ const DataPointCurveEditor = ({
     dataPoints,
     curves,
     curve,
+    dataLut,
     selectedPoint,
     onUpdateState,
 }: {
@@ -32,6 +34,8 @@ const DataPointCurveEditor = ({
     curves: Map<string, Curve>,
     /** the curve on which to edit the data for */
     curve: Curve,
+    /** LUT for the selected data curve */
+    dataLut: LutPoint<number>[],
     /** point currently selected, or null if none selected */
     selectedPoint: SelectedPoint|null,
     /** function updates states based on updater function */
@@ -90,9 +94,12 @@ const DataPointCurveEditor = ({
                 type: 'anchor',
                 isSelected: isSelected && selectedPoint.type === 'anchor',
                 bounds: {
-                    x: t === undefined // if positioned, no flexibility; otherwise, betewen bounds of t
+                    x: t === null // if positioned, no flexibility; otherwise, betewen bounds of t
                         ? { min: acc.positionedDataCount, max: acc.positionedDataCount }
-                        : { min: acc.positionedDataCount, max: acc.positionedDataCount+1 },
+                        : {
+                            min: acc.positionedDataCount +      Number.EPSILON,
+                            max: acc.positionedDataCount + (1 - Number.EPSILON),
+                        },
                     y: { min: 0, max: dataPointType.upperValue }, // keep value within bounds
                 },
             });
@@ -145,6 +152,49 @@ const DataPointCurveEditor = ({
         y: convertExponentialTToValue(1 - (px.y / canvas.height), dataPointType.upperValue),
     })
 
+    /**
+     * function draws positioned point indicators and curve onto background of editor
+     * @param canvas a reference to the canvas to draw on
+     * @param ctx the drawing context to use to draw on
+     */
+    const drawBg = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
+        // save context settings so don't affect later drawings
+        ctx.save();
+
+        // draw vertical indicators behind each data point that is positioned
+        ctx.lineWidth = DATA_POINT_RADIUS * 2; // full width of point
+        ctx.strokeStyle = BG_INDICATOR_COLOR;
+
+        for (const draggablePoint of draggablePoints) {
+            // only care about anchor points
+            if (draggablePoint.type !== 'anchor') { continue; }
+
+            // if constricted to certain x position, is positioned so add indicator line
+            const { bounds } = draggablePoint;
+            if (bounds?.x?.min !== undefined && bounds?.x?.min === bounds?.x?.max) {
+                const xPx = convertPosToCanvasPx(canvas, { x: bounds.x.min, y: 0 }).x; // don't care about y
+                ctx.beginPath();
+                ctx.moveTo(xPx, 0);
+                ctx.lineTo(xPx, canvas.height);
+                ctx.stroke();
+            }
+        }
+
+        // draw line based on values in LUT
+        ctx.lineWidth = DATA_POINT_RADIUS / 3; // pass through center third of each point
+        ctx.strokeStyle = CURVE_COLOR;
+        ctx.beginPath();
+        for (const { value, t } of dataLut) {
+            const lutPos = { x: t, y: value };
+            const lutPosPx = convertPosToCanvasPx(canvas, lutPos);
+            ctx.lineTo(lutPosPx.x, lutPosPx.y);
+        }
+        ctx.stroke();
+
+        // restore back to initial context settings
+        ctx.restore();
+    }
+
     return (
         <BezierCurveEditor
             draggablePoints={draggablePoints}
@@ -154,7 +204,7 @@ const DataPointCurveEditor = ({
             onUpdatePoint={handleUpdatePoint}
             convertPosToCanvasPx={convertPosToCanvasPx}
             convertCanvasPxToPos={convertCanvasPxToPos}
-            drawBg={() => { }}
+            drawBg={drawBg}
         />
     );
 }
