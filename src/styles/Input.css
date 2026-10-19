@@ -67,7 +67,7 @@ div.input-inline > label::after {
     background-color: var(--color-button-controls-bg);
 }
 .button-input[disabled] {
-    color: white;
+    color: var(--color-controls);
     background-color: var(--color-bg);
 }
 

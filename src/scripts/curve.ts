@@ -256,11 +256,11 @@ export const updateCurveFromAddPoint = <T extends Point>(
         [pointType.updaterFunctionKey]: (prevPoints: Map<string, T>) => {
             const newPoints = new Map(prevPoints);
             newPoints.set(newPointId, newPoint);
-            if (newBeforeControlPosLength !== undefined) {
-                newPoints.get(beforeCurvePoint!.id)!.controlPos.afterLength = newBeforeControlPosLength;
+            if (beforeCurvePoint !== undefined && newBeforeControlPosLength !== undefined) {
+                newPoints.get(beforeCurvePoint.id)!.controlPos.afterLength = newBeforeControlPosLength;
             }
-            if (newAfterControlPosLength !== undefined) {
-                newPoints.get(afterCurvePoint!.id)!.controlPos.beforeLength = newAfterControlPosLength;
+            if (afterCurvePoint !== undefined && newAfterControlPosLength !== undefined) {
+                newPoints.get(afterCurvePoint.id)!.controlPos.beforeLength = newAfterControlPosLength;
             }
             return newPoints;
         },

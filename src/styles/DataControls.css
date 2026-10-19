@@ -1,0 +1,33 @@
+
+.data-controls-container {
+    width: 100%;
+    height: 100%;
+    padding: 1rem;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    grid-template-columns: auto    auto    1fr     auto        auto       auto;
+    grid-template-areas:  ".       .       .       .           .          .     "
+                          "editor  editor  editor  editor      editor     editor"
+                          "before  after   .       add-before  add-after  delete";
+    gap: 0.5rem;
+}
+
+.data-controls-container > .curve-editor {
+    grid-area: editor;
+    min-height: 0;
+}
+.data-controls-container > .traverse-before-button {
+    grid-area: before;
+}
+.data-controls-container > .traverse-after-button {
+    grid-area: after;
+}
+.data-controls-container > .add-point-before-button {
+    grid-area: add-before;
+}
+.data-controls-container > .add-point-after-button {
+    grid-area: add-after;
+}
+.data-controls-container > .delete-point-button {
+    grid-area: delete;
+}

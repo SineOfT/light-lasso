@@ -7,17 +7,23 @@ import '../styles/Input.css';
 const Button = ({
     title,
     disabled,
+    className,
     onClick
 }: {
     /** title displayed inside the button */
     title: string,
     /** whether the button can be clicked or not */
     disabled?: boolean,
+    /** the classes to add to the button */
+    className?: string,
     /** function run when button clicked */
     onClick: (e: MouseEvent<HTMLButtonElement>) => void,
 }) => {
+    // add custom class to given class names
+    const buttonClassName = `button-input ${className ?? ''}`;
+
     return (
-        <button type="button" className="button-input" disabled={disabled} onClick={onClick}>
+        <button type="button" className={buttonClassName} disabled={disabled} onClick={onClick}>
             {title}
         </button>
     );

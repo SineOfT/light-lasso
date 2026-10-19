@@ -133,8 +133,8 @@ export const generateCubicBezierLutForDataCurve = (
     lut.push(...generateCubicBezierLutSection(
         anchorPos2,
         getAfterControlPos(anchorPos2, point2.point.controlPos),
-        { x: anchorPos2.x + 1, y: 0 }, // one further than t value of furthest point
-        { x: anchorPos2.x + 1, y: 0 }, // 
+        { x: Math.floor(anchorPos2.x) + 1, y: 0 }, // one further than t value of furthest positioned point
+        { x: Math.floor(anchorPos2.x) + 1, y: 0 }, // 
     ).map((pos) => ({
         value: pos.y,
         t: pos.x,

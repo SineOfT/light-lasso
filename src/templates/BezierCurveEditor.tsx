@@ -114,13 +114,9 @@ const BezierCurveEditor = ({
                  && canvas.height === borderBoxSize.blockSize) {
                     return; 
                 }
-
-                // update dimensions of canvas in DOM
-                canvas.width = borderBoxSize.inlineSize;
-                canvas.height = borderBoxSize.blockSize;
                 
                 // update dimensions of canvas in state
-                setCanvasSize({ x: canvas.width, y: canvas.height });
+                setCanvasSize({ x: borderBoxSize.inlineSize, y: borderBoxSize.blockSize });
             });
         });
 
@@ -136,12 +132,17 @@ const BezierCurveEditor = ({
     // effect draws canvas when value updated
     useEffect(() => {
         // get canvas and context from DOM
-        if (canvasRef.current === null) { return; }
-        const ctx = canvasRef.current.getContext('2d');
+        const canvas = canvasRef.current;
+        if (canvas === null) { return; }
+        const ctx = canvas.getContext('2d');
         if (ctx === null) {
             console.warn('Failed to draw on canvas, ensure that HTML canvas is enabled');
             return;
         }
+
+        // update size of canvas
+        canvas.width  = canvasSize.x;
+        canvas.height = canvasSize.y;
 
         // draw editor
         draw(ctx, canvasSize, canvasOriginPx, draggablePoints, pointRadius);
@@ -363,6 +364,7 @@ const BezierCurveEditor = ({
                 width: '100%',
                 height: '100%',
             }}
+            className="curve-editor"
             onMouseDown={handleDragStart}
             onMouseMove={handleDrag}
         ></canvas>

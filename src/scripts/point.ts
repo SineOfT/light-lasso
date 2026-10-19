@@ -1,4 +1,4 @@
-import { posSub, posDiv, posLength, posLerp, posRound } from "./pos";
+import { posSub, posDiv, posLength, posLerp } from "./pos";
 import { getAfterControlPos, getBeforeControlPos } from "./controlPos";
 
 import type { pos } from "./pos";
@@ -113,7 +113,7 @@ export const calculateNewPointBetween = (
     const afterLength  = posLength(newAfterControlPos);
     const direction = posDiv(newAfterControlPos, afterLength);
     const newPoint = {
-        anchorPos: posRound(c1), // round to nearest integer
+        anchorPos: c1,
         controlPos: { direction, beforeLength, afterLength },
     };
 
