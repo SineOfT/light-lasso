@@ -1,4 +1,4 @@
-import { getBeforeControlPos, calculateNewControlPos } from '../scripts/controlPos';
+import { getBeforeControlPos, calculateNewControlPos, getAfterControlPos } from '../scripts/controlPos';
 import { updateSelectedPoint } from '../scripts/point';
 import { RADIUS_POINT_TYPE } from '../scripts/dataPoint';
 import { getCurvePoints, updateCurveFromAddPoint, updateCurveFromDeletePoint, updateCurveFromUpdatePoint } from '../scripts/curve';
@@ -53,6 +53,7 @@ const DataControls = ({
         onUpdateState(updateSelectedPoint(newSelectedPoint));
     }
 
+    // find values and functions for number inputs that update position of selected data point on curve 
     const {
         selectedPointValue, handleUpdateValue,
         selectedPointT, handleUpdateT,
@@ -79,30 +80,33 @@ const DataControls = ({
                 }
             }
 
-            // calculate position of control
-            if (selectedPoint!.type === 'beforeControl') {
+            // if control selected, find control position and update by calculating required change 
+            if (selectedPoint!.type === 'beforeControl' || selectedPoint!.type === 'afterControl') {
+                const isAfter = selectedPoint!.type === 'afterControl';
                 const anchorPos = { x: selectedDataPoint.t ?? 0, y: selectedDataPoint.point.value };
-                const controlPos = getBeforeControlPos(anchorPos, selectedDataPoint.point.controlPos);
+                const controlPos = isAfter
+                    ? getAfterControlPos( anchorPos, selectedDataPoint.point.controlPos)
+                    : getBeforeControlPos(anchorPos, selectedDataPoint.point.controlPos);
+
                 return {
                     selectedPointValue: controlPos.y,
                     handleUpdateValue: (newValue: number) => {
                         const newControlPos = calculateNewControlPos(
-                            anchorPos, selectedDataPoint.point.controlPos, { y: newValue }, false);
+                            anchorPos, selectedDataPoint.point.controlPos, { y: newValue }, isAfter);
                         onUpdateState(updateCurveFromUpdatePoint(RADIUS_POINT_TYPE,
                                 radiusPoints, curves, selectedDataPoint.id, { controlPos: newControlPos }));
                     },
                     selectedPointT: controlPos.x,
                     handleUpdateT: (newT: number) => {
                         const newControlPos = calculateNewControlPos(
-                            anchorPos, selectedDataPoint.point.controlPos, { x: newT }, false);
+                            anchorPos, selectedDataPoint.point.controlPos, { x: newT }, isAfter);
                         onUpdateState(updateCurveFromUpdatePoint(RADIUS_POINT_TYPE,
                                 radiusPoints, curves, selectedDataPoint.id, { controlPos: newControlPos }));
                     },
                 }
             }
 
-            return { }
-
+            return selectedPoint!.type satisfies never;
         })()
         : { };
 
