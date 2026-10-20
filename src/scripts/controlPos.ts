@@ -41,17 +41,17 @@ export const calculateNewControlPos = (
     isAfter: boolean,
 ): ControlPos => {
     // determine current position of modified control position 
-    const currThisPos = isAfter
+    const currPos = isAfter
         ? getAfterControlPos( anchorPos, controlPos)
         : getBeforeControlPos(anchorPos, controlPos);
 
     // determine new position of modified control point
-    const newThisPos: pos = { ...currThisPos, ...changedPos };
+    const newPos: pos = { ...currPos, ...changedPos };
 
     // calculate direction and length of new control pos
-    const newThisControlPosOffset = posSub(newThisPos, anchorPos);
-    const newThisLength = posLength(newThisControlPosOffset);
-    const newThisDirection = posDiv(newThisControlPosOffset, newThisLength);
+    const newControlPosOffset = posSub(newPos, anchorPos);
+    const newLength = posLength(newControlPosOffset);
+    const newDirection = posDiv(newControlPosOffset, newLength);
 
     // determine offset of opposite control position from the anchor position
     const currOppositeLength = isAfter ? controlPos.beforeLength : controlPos.afterLength;
@@ -59,19 +59,19 @@ export const calculateNewControlPos = (
 
     // calculate new length of opposite control pos by maintaining unmodified axes
     const newOppositeLength =
-        changedPos.x === undefined ? Math.abs(oppositeControlPosOffset.x / newThisDirection.x)
-      : changedPos.y === undefined ? Math.abs(oppositeControlPosOffset.y / newThisDirection.y)
+        changedPos.x === undefined ? Math.abs(oppositeControlPosOffset.x / newDirection.x)
+      : changedPos.y === undefined ? Math.abs(oppositeControlPosOffset.y / newDirection.y)
       : currOppositeLength; // if no reference axis, just keep length same
     
     return isAfter
         ? {
-            direction: newThisDirection,
+            direction: newDirection,
             beforeLength: newOppositeLength,
-            afterLength: newThisLength,
+            afterLength: newLength,
         }
         : {
-            direction: posMul(newThisDirection, -1),
-            beforeLength: newThisLength,
+            direction: posMul(newDirection, -1),
+            beforeLength: newLength,
             afterLength: newOppositeLength,
         };
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { EMPTY_POS, posAdd, posSub, posDiv, posWithin, posWithLength, posDistance } from '../scripts/pos';
+import { EMPTY_POS, posAdd, posSub, posMul, posDiv, posWithin, posDistance } from '../scripts/pos';
 import { clampPosToBounds } from '../scripts/bounds';
 
 import type { MouseEvent } from 'react';
@@ -36,6 +36,8 @@ interface DragStart {
     initial: pos,
     /** initial position where mouse pressed down to start drag */
     mouse: pos,
+    /** if dragging control point, position of opposing control point */
+    oppositeControlPos?: pos,
 }
 
 /** color of the background of the canvas, focusing only on the main area */
@@ -241,10 +243,14 @@ const BezierCurveEditor = ({
 
         // otherwise, select clicked point and start dragging point
         } else {
-            const { id, pos, type } = clickedPoints[0]!;
+            const clickedPoint = clickedPoints[0]!;
+            const { id, pos, type } = clickedPoint;
             const posPx = convertPosToCanvasPx(canvasSize, pos);
+            const oppositeControlPos = (type === 'beforeControl' || type === 'afterControl')
+                ? convertPosToCanvasPx(canvasSize, clickedPoint.oppositeControlPos)
+                : undefined;
             onUpdateSelected({ id, type });
-            setDragStartPx({ initial: posPx, mouse: mousePx });
+            setDragStartPx({ initial: posPx, mouse: mousePx, oppositeControlPos });
         }
     }
 
@@ -295,27 +301,19 @@ const BezierCurveEditor = ({
                 return { anchorPos: newPosClamped };
             }
 
-            // if control dragged, find position of opposing control point
+            // if control dragged, find length of opposite control position relative to modified position, in px
             const newPosPx = convertPosToCanvasPx(canvasSize, newPos);
             const anchorPosPx = convertPosToCanvasPx(canvasSize, draggingPoint.anchorPos);
-            const oppositeControlPosPx =
-                convertPosToCanvasPx(canvasSize, draggingPoint.oppositeControlPos);
+            const controlLengthPx = posDistance(newPosPx, anchorPosPx);
+            const oppositeControlPosPx = dragStartPx.oppositeControlPos
+                ?? convertPosToCanvasPx(canvasSize, draggingPoint.oppositeControlPos); // fallback, but shouldn't
             const oppositeControlLengthPx = posDistance(oppositeControlPosPx, anchorPosPx);
-            const newOppositeControlPosPx = posAdd(
-                anchorPosPx,
-                posWithLength(posSub(anchorPosPx, newPosPx), oppositeControlLengthPx));
-            const newOppositeControlPos = convertCanvasPxToPos(canvasSize, newOppositeControlPosPx);
+            const oppositeFraction = oppositeControlLengthPx / controlLengthPx;
 
-            // calculate offset between current anchor and new position
-            const controlLength         = posDistance(newPos,                draggingPoint.anchorPos);
-            const oppositeControlLength = posDistance(newOppositeControlPos, draggingPoint.anchorPos);
-            /*
-             * use opposite control position to calculate direction, since canvas px to pos conversion
-             * does not need to be linear, and only controlling dragging control position leads to
-             * the error between directions reccursively error the length of the opposite control position
-             */
-            const direction =
-                posDiv(posSub(newOppositeControlPos, draggingPoint.anchorPos), oppositeControlLength);
+            // calculate new control position parameters, using modified point to determine direction
+            const controlLength = posDistance(newPos, draggingPoint.anchorPos);
+            const oppositeControlLength = controlLength * oppositeFraction;
+            const direction = posDiv(posSub(draggingPoint.anchorPos, newPos), controlLength);
 
             // if before control position dragged, change before control position
             if (draggingPoint.type === 'beforeControl') {
@@ -328,10 +326,8 @@ const BezierCurveEditor = ({
 
             // if after control position dragged, change after control position
             if (draggingPoint.type === 'afterControl') {
-                const direction =
-                    posDiv(posSub(draggingPoint.anchorPos, newOppositeControlPos), oppositeControlLength);
                 return { controlPos: {
-                    direction,
+                    direction: posMul(direction, -1),
                     beforeLength: oppositeControlLength,
                     afterLength: controlLength,
                 } };

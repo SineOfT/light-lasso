@@ -82,16 +82,16 @@ const DataControls = ({
             // calculate position of control
             if (selectedPoint!.type === 'beforeControl') {
                 const anchorPos = { x: selectedDataPoint.t ?? 0, y: selectedDataPoint.point.value };
-                const thisControlPos = getBeforeControlPos(anchorPos, selectedDataPoint.point.controlPos);
+                const controlPos = getBeforeControlPos(anchorPos, selectedDataPoint.point.controlPos);
                 return {
-                    selectedPointValue: thisControlPos.y,
+                    selectedPointValue: controlPos.y,
                     handleUpdateValue: (newValue: number) => {
                         const newControlPos = calculateNewControlPos(
                             anchorPos, selectedDataPoint.point.controlPos, { y: newValue }, false);
                         onUpdateState(updateCurveFromUpdatePoint(RADIUS_POINT_TYPE,
                                 radiusPoints, curves, selectedDataPoint.id, { controlPos: newControlPos }));
                     },
-                    selectedPointT: thisControlPos.x,
+                    selectedPointT: controlPos.x,
                     handleUpdateT: (newT: number) => {
                         const newControlPos = calculateNewControlPos(
                             anchorPos, selectedDataPoint.point.controlPos, { x: newT }, false);
