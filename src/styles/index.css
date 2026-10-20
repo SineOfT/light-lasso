@@ -15,4 +15,10 @@
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
+    gap: 0.5rem;
 }
+
+.flex-start { justify-content: start; }
+.flex-end   { justify-content: end;   }
+
+.v-none { visibility: hidden; }

@@ -12,7 +12,12 @@ input {
 input[type="number"] {
     border: 1px solid var(--color-controls);
     border-radius: 0.5rem;
+    min-width: 5rem;
 }
+input[type="number"][disabled] {
+    background-color: transparent;
+    color: var(--color-controls);
+} 
 
 input[type="range"] {
     accent-color: var(--color-accent);

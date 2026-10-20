@@ -6,7 +6,7 @@
     display: grid;
     grid-template-rows: auto 1fr auto;
     grid-template-columns: auto    auto    1fr     auto        auto       auto;
-    grid-template-areas:  ".       .       .       .           .          .     "
+    grid-template-areas:  ".       .       .       value       value      value "
                           "editor  editor  editor  editor      editor     editor"
                           "before  after   .       add-before  add-after  delete";
     gap: 0.5rem;
@@ -15,6 +15,9 @@
 .data-controls-container > .curve-editor {
     grid-area: editor;
     min-height: 0;
+}
+.data-controls-container > .data-point-pos-input {
+    grid-area: value;
 }
 .data-controls-container > .traverse-before-button {
     grid-area: before;

@@ -66,7 +66,7 @@ export const getCurvePoints = <T extends Point>(
     // filter curve to only contain points existing in desired record
     const curvePoints = curve
         .map(({ id, t }, index) => ({ id, point: points.get(id), index, t }))
-        .filter((curvePoint): curvePoint is { id: string, point: T, index: number, t: number } =>
+        .filter((curvePoint): curvePoint is { id: string, point: T, index: number, t: number|null } =>
             curvePoint.point !== undefined);
 
     return curvePoints;

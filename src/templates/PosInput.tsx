@@ -1,4 +1,4 @@
-import type { ChangeEvent } from 'react';
+import NumberInput from './NumberInput';
 
 import type { pos } from '../scripts/pos';
 
@@ -13,39 +13,21 @@ export const PosInput = ({
     /** current position of input */
     pos: pos,
     /** function updates position of current position, ignoring unset keys */
-    onUpdatePos: (changedValues: { x?: number, y?: number }) => void,
+    onUpdatePos: (changedPos: Partial<pos>) => void,
 }) => {
-    /** function handles changing x value of position */
-    const handleChangeX = (e: ChangeEvent<HTMLInputElement>) => {
-        const newX = parseFloat(e.target.value);
-        if (isNaN(newX)) { return; }
-        onUpdatePos({ x: newX });
-    }
+    /** function handles updating x value of position */
+    const handleUpdateX = (newX: number) => { onUpdatePos({ x: newX }); }
 
-    /** function handles changing y value of position */
-    const handleChangeY = (e: ChangeEvent<HTMLInputElement>) => {
-        const newY = parseFloat(e.target.value);
-        if (isNaN(newY)) { return; }
-        onUpdatePos({ y: newY });
-    }
+    /** function handles updating y value of position */
+    const handleUpdateY = (newY: number) => { onUpdatePos({ y: newY }); }
 
     // create IDs for each input
     const xInputId = `${id}-x-input`;
     const yInputId = `${id}-y-input`;
 
     return (<>
-        <div className="number-input input-inline">
-            <label htmlFor={xInputId}>X</label>
-            <input type="number" id={xInputId} value={parseFloat(pos.x.toFixed(2))}
-                onChange={handleChangeX}
-            />
-        </div>
-        <div className="number-input input-inline">
-            <label htmlFor={yInputId}>Y</label>
-            <input type="number" id={yInputId} value={parseFloat(pos.y.toFixed(2))}
-                onChange={handleChangeY}
-            />
-        </div>
+        <NumberInput id={xInputId} title="X" value={pos.x} onUpdateValue={handleUpdateX} />
+        <NumberInput id={yInputId} title="Y" value={pos.y} onUpdateValue={handleUpdateY} />
     </>);
 }
 

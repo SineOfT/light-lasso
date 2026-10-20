@@ -1,4 +1,4 @@
-import { posAdd, posMul } from "./pos";
+import { posAdd, posSub, posMul, posLength, posDiv } from "./pos";
 
 import type { pos } from "./pos";
 
@@ -25,3 +25,53 @@ export const getBeforeControlPos = (anchorPos: pos, controlPos: ControlPos) =>
 /** function finds position of before control position */
 export const getAfterControlPos = (anchorPos: pos, controlPos: ControlPos) =>
     posAdd(anchorPos, posMul(controlPos.direction, controlPos.afterLength));
+
+/**
+ * function calculates new control positions when given changes made to either before or after position
+ * @param anchorPos position of anchor point
+ * @param controlPos control position to modify
+ * @param changedPos which axes of control position changed
+ * @param isAfter whether changed control position is before control position or after control position
+ * @returns new control position
+ */
+export const calculateNewControlPos = (
+    anchorPos: pos,
+    controlPos: ControlPos,
+    changedPos: Partial<pos>,
+    isAfter: boolean,
+): ControlPos => {
+    // determine current position of modified control position 
+    const currThisPos = isAfter
+        ? getAfterControlPos( anchorPos, controlPos)
+        : getBeforeControlPos(anchorPos, controlPos);
+
+    // determine new position of modified control point
+    const newThisPos: pos = { ...currThisPos, ...changedPos };
+
+    // calculate direction and length of new control pos
+    const newThisControlPosOffset = posSub(newThisPos, anchorPos);
+    const newThisLength = posLength(newThisControlPosOffset);
+    const newThisDirection = posDiv(newThisControlPosOffset, newThisLength);
+
+    // determine offset of opposite control position from the anchor position
+    const currOppositeLength = isAfter ? controlPos.beforeLength : controlPos.afterLength;
+    const oppositeControlPosOffset = posMul(controlPos.direction, currOppositeLength * (isAfter ? -1 : 1));
+
+    // calculate new length of opposite control pos by maintaining unmodified axes
+    const newOppositeLength =
+        changedPos.x === undefined ? Math.abs(oppositeControlPosOffset.x / newThisDirection.x)
+      : changedPos.y === undefined ? Math.abs(oppositeControlPosOffset.y / newThisDirection.y)
+      : currOppositeLength; // if no reference axis, just keep length same
+    
+    return isAfter
+        ? {
+            direction: newThisDirection,
+            beforeLength: newOppositeLength,
+            afterLength: newThisLength,
+        }
+        : {
+            direction: posMul(newThisDirection, -1),
+            beforeLength: newThisLength,
+            afterLength: newOppositeLength,
+        };
+}

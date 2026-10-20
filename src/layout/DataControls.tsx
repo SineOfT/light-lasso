@@ -1,8 +1,11 @@
-import { getCurvePoints, updateCurveFromAddPoint, updateCurveFromDeletePoint } from '../scripts/curve';
+import { getBeforeControlPos, calculateNewControlPos } from '../scripts/controlPos';
+import { updateSelectedPoint } from '../scripts/point';
 import { RADIUS_POINT_TYPE } from '../scripts/dataPoint';
+import { getCurvePoints, updateCurveFromAddPoint, updateCurveFromDeletePoint, updateCurveFromUpdatePoint } from '../scripts/curve';
+import NumberInput from '../templates/NumberInput';
 import DataPointCurveEditor from '../templates/DataPointCurveEditor';
 
-import { updateSelectedPoint, type PointUpdaterFunctions, type SelectedPoint } from '../scripts/point';
+import type { PointUpdaterFunctions, SelectedPoint } from '../scripts/point';
 import type { DataPoint } from '../scripts/dataPoint';
 import type { Curve } from '../scripts/curve';
 import type { LutPoint } from '../scripts/lut';
@@ -36,7 +39,7 @@ const DataControls = ({
     const curvePoints = getCurvePoints(radiusPoints, curves, selectedCurveId);
     if (curvePoints === undefined) { return <></>; }
 
-    // get index of selected point on curve points, if it exists
+    // get selected point on curve points, if it exists
     const selectedPointIndex = curvePoints.findIndex(({ id }) => id === selectedPoint?.id);
 
     // find corresponding LUT for selected curve, using an empty LUT if doesn't exist yet
@@ -49,6 +52,59 @@ const DataControls = ({
     const handleUpdateSelected = (newSelectedPoint: SelectedPoint) => {
         onUpdateState(updateSelectedPoint(newSelectedPoint));
     }
+
+    const {
+        selectedPointValue, handleUpdateValue,
+        selectedPointT, handleUpdateT,
+    } = selectedPointIndex !== -1
+        ? (() => {
+            // find selected point
+            const selectedDataPoint = curvePoints[selectedPointIndex]!;
+
+            // if anchor selected, update value directly
+            if (selectedPoint!.type === 'anchor') {
+                return {
+                    selectedPointValue: selectedDataPoint.point.value,
+                    handleUpdateValue: (newValue: number) => {
+                        onUpdateState(updateCurveFromUpdatePoint(RADIUS_POINT_TYPE,
+                            radiusPoints, curves, selectedDataPoint.id, { value: newValue }));
+                    },
+                    selectedPointT: selectedDataPoint.t ?? undefined,
+                    handleUpdateT: selectedDataPoint.t !== null
+                        ? (newT: number) => {
+                            onUpdateState(updateCurveFromUpdatePoint(RADIUS_POINT_TYPE,
+                                radiusPoints, curves, selectedDataPoint.id, { }, newT));
+                        }
+                        : undefined,
+                }
+            }
+
+            // calculate position of control
+            if (selectedPoint!.type === 'beforeControl') {
+                const anchorPos = { x: selectedDataPoint.t ?? 0, y: selectedDataPoint.point.value };
+                const thisControlPos = getBeforeControlPos(anchorPos, selectedDataPoint.point.controlPos);
+                return {
+                    selectedPointValue: thisControlPos.y,
+                    handleUpdateValue: (newValue: number) => {
+                        const newControlPos = calculateNewControlPos(
+                            anchorPos, selectedDataPoint.point.controlPos, { y: newValue }, false);
+                        onUpdateState(updateCurveFromUpdatePoint(RADIUS_POINT_TYPE,
+                                radiusPoints, curves, selectedDataPoint.id, { controlPos: newControlPos }));
+                    },
+                    selectedPointT: thisControlPos.x,
+                    handleUpdateT: (newT: number) => {
+                        const newControlPos = calculateNewControlPos(
+                            anchorPos, selectedDataPoint.point.controlPos, { x: newT }, false);
+                        onUpdateState(updateCurveFromUpdatePoint(RADIUS_POINT_TYPE,
+                                radiusPoints, curves, selectedDataPoint.id, { controlPos: newControlPos }));
+                    },
+                }
+            }
+
+            return { }
+
+        })()
+        : { };
 
     /**
      * if defiend, function handles adding new point either before or after selected point
@@ -94,6 +150,16 @@ const DataControls = ({
                 selectedPoint={selectedPoint}
                 onUpdateState={onUpdateState}
             />
+            <div className="data-point-pos-input flex-row flex-end">
+                <NumberInput id="data-point-t" title="T" disabled={selectedPointT === undefined}
+                    value={selectedPointT ?? 0}
+                    onUpdateValue={(newT) => { handleUpdateT!(newT); }}
+                />
+                <NumberInput id="data-point-value" title="Value" disabled={selectedPointValue === undefined}
+                    value={selectedPointValue ?? 0}
+                    onUpdateValue={(newValue) => { handleUpdateValue!(newValue); }}
+                />
+            </div>
             <Button className="traverse-before-button"  title="<"
                 disabled={beforeSelectedPoint === undefined}
                 onClick={() => { handleUpdateSelected(beforeSelectedPoint!); }}
