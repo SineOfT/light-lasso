@@ -28,25 +28,20 @@ export const calculateNewDataPoint: NewPointCalculator<DataPoint> = (beforePoint
     beforePoint ??= { id: '', point: { value: 0, controlPos: EMPTY_CONTROL_POS }, t: null };
     afterPoint  ??= { id: '', point: { value: 0, controlPos: EMPTY_CONTROL_POS }, t: null };
 
+    // if new point positioned, after curve point offset to be positioned at 2, since new point at 1
+    const afterCurvePointTIfNull = currT === null ? 2 : 1;
+
     // find point halfway between points
     const beforeCurvePoint = {
         anchorPos: { x: beforePoint.t ?? 0, y: beforePoint.point.value },
         controlPos: beforePoint.point.controlPos,
     };
     const afterCurvePoint = {
-        anchorPos: { x: afterPoint.t ?? 1, y: afterPoint.point.value },
+        anchorPos: { x: afterPoint.t ?? afterCurvePointTIfNull, y: afterPoint.point.value },
         controlPos: afterPoint.point.controlPos,
     }
     let { newPoint, newBeforeControlPosLength, newAfterControlPosLength } 
         = calculateNewPointBetween(beforeCurvePoint, afterCurvePoint);
-
-    // if new point already positioned, double each t value since adding this point leads to double t range
-    if (currT === null) {
-        newPoint.controlPos.beforeLength *= 2;
-        newPoint.controlPos.afterLength *= 2;
-        newBeforeControlPosLength *= 2;
-        newAfterControlPosLength *= 2;
-    }
 
     return {
         newPoint: { value: newPoint.anchorPos.y, controlPos: newPoint.controlPos },
